@@ -104,7 +104,8 @@ export default function HomePage() {
 
     const { data: current } = await supabase.rpc("current_app_profile");
     if (current?.length) {
-      setSessionProfile(current[0]);
+      window.location.href = `/app.html?user=${encodeURIComponent(current[0].display_name)}`;
+      return;
     }
 
     const { data, error } = await supabase.rpc("list_login_profiles");
@@ -139,9 +140,7 @@ export default function HomePage() {
       role: selected.role,
     });
     setSubmittingPin(false);
-    setSelected(null);
-    setPin("");
-    setTempPin("");
+    window.location.href = `/app.html?user=${encodeURIComponent(selected.display_name)}`;
   }
 
   async function handlePinContinue() {
