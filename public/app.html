@@ -811,7 +811,7 @@ function loginAs(name){
 function logout(){
   activeUser='';
   localStorage.removeItem('home-expense-user');
-  location.href='/';
+  window.location.replace('/logout');
 }
 
 
