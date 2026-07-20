@@ -174,4 +174,23 @@ input { width: 100%; border: 1px solid #dfe2e8; border-radius: 14px; padding: 13
   .adminActions button { flex: 1; }
 }
 
-.pinAutoStatus{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:38px;color:var(--muted);font-size:13px;padding:0 4px}.clearPinButton{color:var(--orange);font-weight:700;white-space:nowrap}
+
+/* quick refinement patch */
+.loginCard { width: min(440px, 100%); }
+.refinedProfile { min-height: 146px; }
+.refinedProfile small { display:none; }
+.pinScreenWrap { display:grid; gap:18px; }
+.minimalBack { margin-bottom: 6px; }
+.minimalPinPanel {
+  padding: 18px 8px 10px;
+  border-radius: 22px;
+  border: 1px solid #f4dfc2;
+  background: linear-gradient(180deg, #ffffff 0%, #fff9f1 100%);
+}
+.pinUnlockCard, .selectedProfileMini, .pinActionsTop { display:none; }
+.pinDots { margin: 2px 0 4px; }
+.pinKeypad { margin-top: 4px; }
+.message { text-align:center; }
+@media (max-width: 640px) {
+  .loginCard { width: min(100%, 440px); }
+}

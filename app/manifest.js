@@ -1,7 +1,7 @@
 export default function manifest() {
   return {
-    name: "Expense Orbit",
-    short_name: "Orbit",
+    name: "Harmony Haven",
+    short_name: "Haven",
     description: "Track household expenses, shared bills, and trip projects in one elegant app.",
     start_url: "/",
     display: "standalone",
