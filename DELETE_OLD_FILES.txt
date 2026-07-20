@@ -1,0 +1,25 @@
+ไฟล์ที่ต้องลบออกจาก GitHub ก่อนหรือหลังอัปโหลดไฟล์ชุดนี้
+
+ที่หน้าแรก Repository:
+- tsconfig.json
+- next-env.d.ts
+- next.config.ts
+
+ภายในโฟลเดอร์:
+- app/layout.tsx
+- app/page.tsx
+- app/manifest.ts
+- app/settings/page.tsx
+- app/admin/page.tsx
+- components/pwa-register.tsx
+- lib/supabase/client.ts
+- lib/types.ts
+
+จากนั้นตรวจว่า:
+- มี next.config.js
+- มีไฟล์ .jsx และ .js ตามชุดอัปเดต
+- ไม่มีไฟล์ .ts หรือ .tsx เหลืออยู่
+- package.json อยู่หน้าแรก Repository
+
+หลังอัปโหลด:
+Vercel > Deployments > Redeploy > ปิด Use existing Build Cache
