@@ -95,11 +95,40 @@ export default function HomePage() {
     setPinStage(selected.pin_is_set ? "login" : "create");
   }, [selected]);
 
+  useEffect(() => {
+    if (!selected || pin.length !== 6 || submittingPin) return;
+
+    const timer = window.setTimeout(() => {
+      if (selected.pin_is_set) {
+        submitPinValue(pin);
+      } else if (pinStage === "create") {
+        setTempPin(pin);
+        setPin("");
+        setPinStage("confirm");
+      } else if (pin !== tempPin) {
+        setMessage("PIN ทั้งสองครั้งไม่ตรงกัน กรุณาตั้งใหม่อีกครั้ง");
+        setPin("");
+        setTempPin("");
+        setPinStage("create");
+      } else {
+        submitPinValue(pin);
+      }
+    }, 160);
+
+    return () => window.clearTimeout(timer);
+  }, [pin, selected, pinStage, tempPin, submittingPin]);
+
   async function bootstrap() {
+    const logoutRequested = new URLSearchParams(window.location.search).get("logout") === "1";
     const { data: authData } = await supabase.auth.getSession();
     if (!authData.session) {
       const { error } = await supabase.auth.signInAnonymously();
       if (error) throw error;
+    }
+
+    if (logoutRequested) {
+      await supabase.rpc("logout_app_profile");
+      window.history.replaceState({}, "", "/");
     }
 
     const { data: current } = await supabase.rpc("current_app_profile");
@@ -314,12 +343,11 @@ export default function HomePage() {
             </div>
 
             <PinDots value={pin} />
-
-            <div className="pinActionsTop">
-              <button type="button" className="secondary softButton" onClick={() => setPin("")} disabled={!pin.length || submittingPin}>ล้าง</button>
-              <button type="button" className="primary continueButton" onClick={handlePinContinue} disabled={submittingPin}>
-                {submittingPin ? "กำลังตรวจสอบ..." : selected.pin_is_set ? "เข้าสู่ระบบ" : pinStage === "create" ? "ถัดไป" : "ยืนยัน PIN"}
-              </button>
+            <div className="pinAutoStatus">
+              <span>{submittingPin ? "กำลังตรวจสอบ PIN…" : "กรอกครบ 6 หลัก ระบบจะเข้าให้อัตโนมัติ"}</span>
+              {pin.length > 0 && !submittingPin && (
+                <button type="button" className="back clearPinButton" onClick={() => setPin("")}>ล้าง</button>
+              )}
             </div>
 
             <PinKeypad onDigit={addDigit} onDelete={removeDigit} />

@@ -173,3 +173,5 @@ input { width: 100%; border: 1px solid #dfe2e8; border-radius: 14px; padding: 13
   .adminActions { grid-column: 1 / -1; }
   .adminActions button { flex: 1; }
 }
+
+.pinAutoStatus{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:38px;color:var(--muted);font-size:13px;padding:0 4px}.clearPinButton{color:var(--orange);font-weight:700;white-space:nowrap}

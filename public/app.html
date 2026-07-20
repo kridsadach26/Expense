@@ -172,6 +172,52 @@
       header{padding:13px}
       .brand{font-size:19px}
     }
+  
+    /* Symmetry and responsive alignment */
+    body{overflow-x:hidden}
+    .login-screen{display:none!important}
+    .app{width:100%;max-width:1280px;margin:0 auto}
+    header{border-radius:0 0 18px 18px}
+    .header-row{max-width:1220px;margin:0 auto}
+    nav{justify-content:center;scrollbar-width:none;padding:12px 18px}
+    nav::-webkit-scrollbar{display:none}
+    main{max-width:1220px;margin:0 auto;padding:22px 20px 40px}
+    .period-controls{grid-template-columns:minmax(300px,.85fr) minmax(500px,1.4fr);gap:24px;align-items:end}
+    .period-picker{display:grid;grid-template-columns:1.35fr .8fr;gap:12px}
+    #quarterPickerWrap{grid-column:1}
+    #yearPickerWrap{grid-column:2}
+    .summary,.project-summary{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+    .metric{min-height:112px;display:flex;flex-direction:column;justify-content:center}
+    .section-title{min-height:42px}
+    .card{overflow:hidden}
+    #chartCard{min-height:260px}
+    #latestList{min-height:100px}
+    .toolbar{display:grid;grid-template-columns:2fr 1fr 1fr auto;align-items:end}
+    .toolbar>*{min-width:0}
+    .settings-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .project-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+    @media(max-width:900px){
+      nav{justify-content:flex-start}
+      .period-controls{grid-template-columns:1fr}
+      .period-picker{grid-template-columns:1fr 1fr}
+      .summary,.project-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .toolbar{grid-template-columns:1fr 1fr}
+      .settings-grid,.project-grid{grid-template-columns:1fr}
+    }
+    @media(max-width:560px){
+      main{padding:14px 12px 30px}
+      header{border-radius:0}
+      .header-row{align-items:flex-start}
+      .user-switch{align-items:flex-start}
+      .period-picker{grid-template-columns:1fr}
+      #quarterPickerWrap,#yearPickerWrap{grid-column:auto}
+      .summary,.project-summary{grid-template-columns:1fr 1fr;gap:10px}
+      .metric{min-height:96px;padding:13px}
+      .toolbar{grid-template-columns:1fr}
+      .project-toolbar{width:100%}
+      .project-toolbar .btn{flex:1}
+    }
+
   </style>
 </head>
 <body>
@@ -811,7 +857,7 @@ function loginAs(name){
 function logout(){
   activeUser='';
   localStorage.removeItem('home-expense-user');
-  location.href='/';
+  window.location.href='/?logout=1';
 }
 
 
@@ -847,8 +893,7 @@ $('notifyRecurring').checked=appSettings.notifyRecurring!==false;
 $('notifyBudget').checked=appSettings.notifyBudget!==false;
 $('notifyCard').checked=appSettings.notifyCard!==false;
 applyDashboardSettings();
-if(activeUser){ loginAs(activeUser); }
-else { location.href='/'; }
+if(activeUser){ loginAs(activeUser); } else { window.location.href='/'; }
 
 
 document.querySelectorAll('[data-period]').forEach(btn=>btn.addEventListener('click',()=>{
