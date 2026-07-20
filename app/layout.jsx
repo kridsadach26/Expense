@@ -2,13 +2,13 @@ import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
 
 export const metadata = {
-  title: "บ้านเรา",
-  description: "รายรับรายจ่ายและโปรเจกต์ร่วม",
-  applicationName: "บ้านเรา",
+  title: "Expense Orbit",
+  description: "Smart home expense tracking with shared projects and PIN unlock.",
+  applicationName: "Expense Orbit",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "บ้านเรา",
+    title: "Expense Orbit",
   },
 };
 

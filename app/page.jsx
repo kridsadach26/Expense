@@ -38,6 +38,16 @@ function PinKeypad({ onDigit, onDelete }) {
   );
 }
 
+function OrbitMark({ small = false }) {
+  return (
+    <div className={`orbitMark ${small ? "small" : ""}`} aria-hidden="true">
+      <span className="orbitRing outer" />
+      <span className="orbitRing inner" />
+      <span className="orbitDot" />
+    </div>
+  );
+}
+
 export default function HomePage() {
   const [profiles, setProfiles] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -53,14 +63,14 @@ export default function HomePage() {
   const [submittingPin, setSubmittingPin] = useState(false);
 
   const title = useMemo(() => {
-    if (sessionProfile) return `สวัสดี ${sessionProfile.display_name}`;
+    if (sessionProfile) return `Welcome back, ${sessionProfile.display_name}`;
     if (!selected) return "เลือกผู้ใช้งาน";
     if (selected.pin_is_set) return `ปลดล็อค ${selected.display_name}`;
     return pinStage === "create" ? `ตั้ง PIN ให้ ${selected.display_name}` : `ยืนยัน PIN ของ ${selected.display_name}`;
   }, [selected, sessionProfile, pinStage]);
 
   const pinHint = useMemo(() => {
-    if (!selected) return "เลือกโปรไฟล์เพื่อเข้าใช้งาน";
+    if (!selected) return "เลือกโปรไฟล์เพื่อเข้าสู่ Expense Orbit";
     if (selected.pin_is_set) return "กรอก PIN 6 หลักเหมือนการปลดล็อคมือถือ";
     return pinStage === "create" ? "ตั้ง PIN 6 หลักสำหรับเข้าใช้งานครั้งถัดไป" : "กรอก PIN เดิมอีกครั้งเพื่อยืนยัน";
   }, [selected, pinStage]);
@@ -206,17 +216,19 @@ export default function HomePage() {
   }
 
   if (loading) {
-    return <main className="center"><div className="card softCard">กำลังเปิดระบบ…</div></main>;
+    return <main className="center"><div className="card softCard">Opening Expense Orbit…</div></main>;
   }
 
   if (sessionProfile) {
     return (
-      <main className="appShell appBackdrop">
+      <main className="appShell appBackdrop orbitTheme">
         <header className="topbar glassBar">
-          <button className="homeMark" aria-label="หน้าหลัก">⌂</button>
-          <div>
-            <strong>บ้านเรา</strong>
-            <small>{sessionProfile.display_name}</small>
+          <div className="brandHeader">
+            <OrbitMark small />
+            <div>
+              <strong>Expense Orbit</strong>
+              <small>{sessionProfile.display_name}</small>
+            </div>
           </div>
           <button className="ghost" onClick={logout}>ออก</button>
         </header>
@@ -224,31 +236,31 @@ export default function HomePage() {
         <section className="content">
           <div className="heroCard">
             <div>
-              <p className="eyebrow">HOME EXPENSE CLOUD</p>
+              <p className="eyebrow">SMART HOUSEHOLD FINANCE</p>
               <h1>{title}</h1>
-              <p className="heroSub">จัดการรายรับรายจ่ายในบ้านและโปรเจกต์ร่วมให้ใช้งานง่ายเหมือนแอปบนมือถือ</p>
+              <p className="heroSub">One elegant place for household expenses, shared bills, and travel projects.</p>
             </div>
-            <div className="heroBadge">พร้อมใช้งาน</div>
+            <div className="heroBadge">Orbit Ready</div>
           </div>
 
           <div className="metrics">
-            <article className="metric modernMetric"><span>รายรับเดือนนี้</span><strong>฿0</strong></article>
-            <article className="metric modernMetric"><span>รายจ่ายเดือนนี้</span><strong>฿0</strong></article>
-            <article className="metric modernMetric"><span>ยอดค้าง</span><strong>฿0</strong></article>
+            <article className="metric modernMetric"><span>This month income</span><strong>฿0</strong></article>
+            <article className="metric modernMetric"><span>This month expense</span><strong>฿0</strong></article>
+            <article className="metric modernMetric"><span>Outstanding balance</span><strong>฿0</strong></article>
           </div>
 
           <div className="card featureCard">
-            <h2>ฐานระบบ Cloud พร้อมแล้ว</h2>
-            <p>เข้าสู่ระบบด้วย PIN, รองรับ PWA, Supabase และโครงสร้างฐานข้อมูลสำหรับรายการบ้านกับโปรเจกต์</p>
+            <h2>Cloud foundation is ready</h2>
+            <p>PIN unlock, PWA support, Supabase backend, and a clean base ready for your real dashboard and project features.</p>
             <div className="featureList">
-              <div>• เข้าใช้งานแบบมือถือ</div>
-              <div>• Admin จัดการ PIN ได้</div>
-              <div>• พร้อมต่อยอดหน้าแดชบอร์ดจริง</div>
+              <div>• mobile-first login experience</div>
+              <div>• admin can manage users and PIN</div>
+              <div>• ready for the next expense modules</div>
             </div>
             <div className="actions">
-              <a className="primary" href="/settings">เปลี่ยน PIN</a>
-              <button className="secondary" disabled>เพิ่มรายการ — ขั้นถัดไป</button>
-              <button className="secondary" disabled>โปรเจกต์ — ขั้นถัดไป</button>
+              <a className="primary" href="/settings">Change PIN</a>
+              <button className="secondary" disabled>Add expense — next step</button>
+              <button className="secondary" disabled>Projects — next step</button>
             </div>
           </div>
         </section>
@@ -257,7 +269,7 @@ export default function HomePage() {
   }
 
   return (
-    <main className="center appBackdrop">
+    <main className="center appBackdrop orbitTheme">
       <section className="loginCard refinedCard">
         <button
           className="houseSecret"
@@ -268,11 +280,11 @@ export default function HomePage() {
         </button>
 
         <div className="logoWrap">
-          <div className="logo">⌂</div>
+          <OrbitMark />
         </div>
 
         <div className="titleBlock">
-          <p className="eyebrow">HOME EXPENSE CLOUD</p>
+          <p className="eyebrow">EXPENSE ORBIT</p>
           <h1>{title}</h1>
           <p className="subtitle">{pinHint}</p>
         </div>
@@ -285,7 +297,7 @@ export default function HomePage() {
                   {profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : profile.display_name.slice(0, 1).toUpperCase()}
                 </div>
                 <strong>{profile.display_name}</strong>
-                <small>{profile.pin_is_set ? "แตะเพื่อปลดล็อค" : "แตะเพื่อตั้ง PIN ครั้งแรก"}</small>
+                <small>{profile.pin_is_set ? "tap to unlock" : "tap to create your PIN"}</small>
               </button>
             ))}
           </div>
@@ -298,7 +310,7 @@ export default function HomePage() {
               </div>
               <div>
                 <strong>{selected.display_name}</strong>
-                <small>{selected.pin_is_set ? "ปลดล็อคเพื่อเข้าสู่ระบบ" : pinStage === "create" ? "กำหนด PIN ใหม่" : "ยืนยัน PIN อีกครั้ง"}</small>
+                <small>{selected.pin_is_set ? "unlock to continue" : pinStage === "create" ? "create your new PIN" : "confirm your PIN"}</small>
               </div>
             </div>
 

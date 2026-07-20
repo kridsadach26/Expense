@@ -21,23 +21,14 @@ html, body {
     radial-gradient(circle at top right, #ffe3c2 0, transparent 22%),
     linear-gradient(180deg, #f7f8fb 0%, #eef1f6 100%);
   color: var(--text);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 button, input { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { text-decoration: none; }
 
-.center {
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-}
-
-.appBackdrop {
-  position: relative;
-}
-
+.center { min-height: 100dvh; display: grid; place-items: center; padding: 20px; }
+.appBackdrop { position: relative; }
 .appBackdrop::before,
 .appBackdrop::after {
   content: "";
@@ -47,311 +38,121 @@ a { text-decoration: none; }
   z-index: 0;
   pointer-events: none;
 }
-
-.appBackdrop::before {
-  width: 260px;
-  height: 260px;
-  left: -60px;
-  top: 60px;
-  background: rgba(255, 176, 76, .24);
-}
-
-.appBackdrop::after {
-  width: 220px;
-  height: 220px;
-  right: -40px;
-  bottom: 60px;
-  background: rgba(255, 138, 31, .14);
-}
-
-.loginCard, .card {
-  position: relative;
-  z-index: 1;
-}
+.appBackdrop::before { width: 260px; height: 260px; left: -60px; top: 60px; background: rgba(255,176,76,.24); }
+.appBackdrop::after { width: 220px; height: 220px; right: -40px; bottom: 60px; background: rgba(255,138,31,.14); }
+.loginCard, .card { position: relative; z-index: 1; }
 
 .loginCard {
-  width: min(460px, 100%);
+  width: min(560px, 100%);
   border: 1px solid rgba(255,255,255,.6);
-  border-radius: 30px;
-  padding: 28px;
+  border-radius: 34px;
+  padding: 30px;
   box-shadow: var(--shadow);
   position: relative;
 }
-
 .refinedCard, .softCard, .featureCard, .heroCard, .glassSection, .modernMetric, .glassBar {
   background: var(--card);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
-
 .logoWrap { display: flex; justify-content: center; }
-.logo {
-  width: 96px;
-  height: 96px;
-  border-radius: 30px;
+.orbitMark {
+  width: 108px; height: 108px; border-radius: 32px;
   background: linear-gradient(135deg, var(--orange), var(--orange2));
-  color: white;
-  display: grid;
-  place-items: center;
-  font-size: 44px;
+  display: grid; place-items: center; position: relative;
+  box-shadow: 0 18px 42px rgba(255,138,31,.28);
   margin: 4px auto 16px;
-  box-shadow: 0 16px 40px rgba(255, 138, 31, .32);
 }
-
+.orbitMark.small { width: 44px; height: 44px; border-radius: 16px; margin: 0; box-shadow: none; }
+.orbitRing { position: absolute; border-radius: 999px; border: 2px solid #fff; opacity: .96; }
+.orbitRing.outer { width: 42px; height: 42px; }
+.orbitRing.inner { width: 18px; height: 18px; }
+.orbitMark.small .orbitRing.outer { width: 18px; height: 18px; }
+.orbitMark.small .orbitRing.inner { width: 8px; height: 8px; }
+.orbitDot {
+  position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #fff; right: 24px; top: 24px;
+}
+.orbitMark.small .orbitDot { width: 5px; height: 5px; right: 9px; top: 9px; }
 .titleBlock { text-align: center; margin-bottom: 20px; }
-.eyebrow {
-  margin: 0 0 8px;
-  color: var(--orange);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: .12em;
-}
-h1 { margin: 0 0 8px; font-size: clamp(32px, 5vw, 48px); line-height: 1.08; }
+.eyebrow { margin: 0 0 8px; color: var(--orange); font-size: 12px; font-weight: 800; letter-spacing: .16em; }
+h1 { margin: 0 0 8px; font-size: clamp(30px, 5vw, 46px); line-height: 1.08; }
 h2 { margin-top: 0; }
-.subtitle, .heroSub {
-  margin: 0;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.6;
-}
+.subtitle, .heroSub { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
 
-.profileGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.profileGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .refinedProfile {
-  border: 1px solid rgba(255, 183, 95, .24);
-  border-radius: 22px;
+  border: 1px solid rgba(255,183,95,.24);
+  border-radius: 24px;
   background: linear-gradient(180deg, #fff 0%, #fffaf4 100%);
-  padding: 20px 14px;
+  padding: 22px 16px;
   cursor: pointer;
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
-  display: grid;
-  gap: 6px;
-  justify-items: center;
+  display: grid; gap: 6px; justify-items: center;
 }
-.refinedProfile:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 35px rgba(255, 138, 31, .12);
-  border-color: rgba(255, 138, 31, .34);
-}
+.refinedProfile:hover { transform: translateY(-2px); box-shadow: 0 16px 35px rgba(255,138,31,.12); border-color: rgba(255,138,31,.34); }
 .refinedProfile small { color: var(--muted); }
-
 .avatar {
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, var(--orange), var(--orange2));
-  color: white;
-  font-size: 28px;
-  font-weight: 800;
-  overflow: hidden;
+  width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--orange), var(--orange2)); color: white; font-size: 30px; font-weight: 800; overflow: hidden;
 }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
-.avatarGlow { box-shadow: 0 14px 30px rgba(255, 138, 31, .22); }
+.avatarGlow { box-shadow: 0 14px 30px rgba(255,138,31,.22); }
 
-.pinUnlockCard {
-  display: grid;
-  gap: 16px;
-  border-radius: 22px;
-  padding: 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #fff9f1 100%);
-  border: 1px solid #f4dfc2;
-}
-
-.selectedProfileMini {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
+.pinUnlockCard { display: grid; gap: 16px; border-radius: 24px; padding: 18px; background: linear-gradient(180deg, #ffffff 0%, #fff9f1 100%); border: 1px solid #f4dfc2; }
+.selectedProfileMini { display: flex; gap: 12px; align-items: center; }
 .selectedProfileMini small { display: block; color: var(--muted); margin-top: 2px; }
 .miniAvatar { width: 48px; height: 48px; font-size: 18px; }
-
-.pinDots {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  margin: 6px 0 2px;
-}
-
-.pinDot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid #f0c98d;
-  background: white;
-  transition: .18s ease;
-}
-
-.pinDot.filled {
-  background: linear-gradient(135deg, var(--orange), var(--orange2));
-  border-color: transparent;
-  transform: scale(1.05);
-  box-shadow: 0 8px 18px rgba(255, 138, 31, .24);
-}
-
-.pinActionsTop {
-  display: flex;
-  gap: 10px;
-}
+.pinDots { display: flex; gap: 12px; justify-content: center; margin: 6px 0 2px; }
+.pinDot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #f0c98d; background: white; transition: .18s ease; }
+.pinDot.filled { background: linear-gradient(135deg, var(--orange), var(--orange2)); border-color: transparent; transform: scale(1.05); box-shadow: 0 8px 18px rgba(255,138,31,.24); }
+.pinActionsTop { display: flex; gap: 10px; }
 .pinActionsTop > * { flex: 1; }
 .softButton { background: #fff; border: 1px solid #f0ddc0; }
-
-.pinKeypad {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-.pinKey,
-.pinKeypadSpacer {
-  min-height: 62px;
-}
+.pinKeypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.pinKey, .pinKeypadSpacer { min-height: 62px; }
 .pinKey {
-  border: 0;
-  border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 10px 24px rgba(31, 35, 48, .08);
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text);
-  cursor: pointer;
-  transition: transform .12s ease, box-shadow .12s ease;
+  border: 0; border-radius: 18px; background: #fff; box-shadow: 0 10px 24px rgba(31,35,48,.08);
+  font-size: 24px; font-weight: 700; color: var(--text); cursor: pointer; transition: transform .12s ease, box-shadow .12s ease;
 }
-.pinKey:active {
-  transform: scale(.97);
-  box-shadow: 0 6px 16px rgba(31, 35, 48, .08);
-}
-.ghostKey {
-  background: #fff5ea;
-  color: #965314;
-}
+.pinKey:active { transform: scale(.97); box-shadow: 0 6px 16px rgba(31,35,48,.08); }
+.ghostKey { background: #fff5ea; color: #965314; }
 .pinKeypadSpacer { visibility: hidden; }
 
 label { color: var(--muted); font-size: 13px; }
-input {
-  width: 100%;
-  border: 1px solid #dfe2e8;
-  border-radius: 14px;
-  padding: 13px 14px;
-  background: white;
-}
+input { width: 100%; border: 1px solid #dfe2e8; border-radius: 14px; padding: 13px 14px; background: white; }
 .primary, .secondary, .danger, .ghost {
-  border: 0;
-  border-radius: 14px;
-  padding: 13px 16px;
-  cursor: pointer;
-  text-align: center;
-  font-weight: 700;
+  border: 0; border-radius: 14px; padding: 13px 16px; cursor: pointer; text-align: center; font-weight: 700;
 }
-.primary {
-  background: linear-gradient(135deg, var(--orange), var(--orange2));
-  color: white;
-  box-shadow: 0 12px 26px rgba(255, 138, 31, .22);
-}
+.primary { background: linear-gradient(135deg, var(--orange), var(--orange2)); color: white; box-shadow: 0 12px 26px rgba(255,138,31,.22); }
 .secondary { background: #f0f2f5; color: var(--text); }
 .danger { background: #fff0f0; color: var(--danger); }
 .ghost { background: rgba(255,255,255,.22); color: white; }
-.back {
-  color: var(--muted);
-  text-decoration: none;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  text-align: left;
-  cursor: pointer;
-}
+.back { color: var(--muted); border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; }
 .subtleBack { font-size: 14px; }
-.message {
-  background: #fff8e8;
-  border: 1px solid #ffe0a4;
-  border-radius: 14px;
-  padding: 12px 14px;
-  margin-top: 18px;
-}
-.houseSecret {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 0;
-  background: transparent;
-  color: #c7cad0;
-  cursor: pointer;
-  font-size: 18px;
-}
-.adminRecovery {
-  margin-top: 18px;
-  padding: 16px;
-  border-top: 1px solid var(--line);
-  border-radius: 18px;
-  display: grid;
-  gap: 10px;
-}
+.message { background: #fff8e8; border: 1px solid #ffe0a4; border-radius: 14px; padding: 12px 14px; margin-top: 18px; }
+.houseSecret { position: absolute; top: 12px; left: 12px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: transparent; color: #c7cad0; cursor: pointer; font-size: 18px; }
+.adminRecovery { margin-top: 18px; padding: 16px; border-top: 1px solid var(--line); border-radius: 18px; display: grid; gap: 10px; }
 .adminRecovery p { color: var(--muted); font-size: 13px; margin: 0; }
 .glassSection { background: rgba(255,255,255,.74); }
 
 .appShell { min-height: 100dvh; }
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  background: linear-gradient(135deg, rgba(255,138,31,.92), rgba(255,180,75,.92));
-  color: white;
+  position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 18px; background: linear-gradient(135deg, rgba(255,138,31,.92), rgba(255,180,75,.92)); color: white;
 }
-.topbar div { flex: 1; display: grid; }
-.topbar small { opacity: .9; }
-.homeMark {
-  width: 42px;
-  height: 42px;
-  border: 0;
-  border-radius: 14px;
-  background: rgba(255,255,255,.22);
-  color: white;
-  font-size: 24px;
-}
+.brandHeader { display: flex; align-items: center; gap: 12px; }
+.topbar small { opacity: .9; display: block; }
 .content { max-width: 1000px; margin: auto; padding: 18px; position: relative; z-index: 1; }
 .content h1 { text-align: left; }
-.heroCard {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 18px;
-  border: 1px solid rgba(255,255,255,.6);
-  border-radius: 24px;
-  padding: 20px;
-  margin-bottom: 16px;
-  box-shadow: 0 14px 36px rgba(25, 30, 45, .08);
-}
-.heroBadge {
-  padding: 10px 12px;
-  border-radius: 999px;
-  background: #fff5e8;
-  color: #be6a10;
-  font-weight: 700;
-  white-space: nowrap;
-}
+.heroCard { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; border: 1px solid rgba(255,255,255,.6); border-radius: 24px; padding: 20px; margin-bottom: 16px; box-shadow: 0 14px 36px rgba(25,30,45,.08); }
+.heroBadge { padding: 10px 12px; border-radius: 999px; background: #fff5e8; color: #be6a10; font-weight: 700; white-space: nowrap; }
 .metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 16px; }
-.metric, .card {
-  border: 1px solid rgba(255,255,255,.65);
-  border-radius: 18px;
-  padding: 16px;
-  box-shadow: 0 8px 30px rgba(26,31,44,.07);
-}
+.metric, .card { border: 1px solid rgba(255,255,255,.65); border-radius: 18px; padding: 16px; box-shadow: 0 8px 30px rgba(26,31,44,.07); }
 .metric { display: grid; gap: 6px; }
 .metric span { color: var(--muted); font-size: 13px; }
 .metric strong { font-size: 24px; }
 .modernMetric { background: rgba(255,255,255,.84); }
-.featureList {
-  display: grid;
-  gap: 8px;
-  color: var(--muted);
-  margin: 14px 0 18px;
-}
+.featureList { display: grid; gap: 8px; color: var(--muted); margin: 14px 0 18px; }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .adminList { display: grid; gap: 12px; }
@@ -362,9 +163,9 @@ input {
 .adminActions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 @media (max-width: 640px) {
-  .loginCard { padding: 20px; border-radius: 26px; }
+  .loginCard { padding: 20px; border-radius: 26px; width: min(100%, 560px); }
   .content { padding: 12px; }
-  .metrics { grid-template-columns: 1fr 1fr; }
+  .metrics { grid-template-columns: 1fr; }
   .heroCard { flex-direction: column; }
   .profileGrid { grid-template-columns: 1fr; }
   .pinKey, .pinKeypadSpacer { min-height: 58px; }

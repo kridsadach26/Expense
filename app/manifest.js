@@ -1,8 +1,8 @@
 export default function manifest() {
   return {
-    name: "บ้านเรา - รายรับรายจ่าย",
-    short_name: "บ้านเรา",
-    description: "บันทึกรายรับรายจ่าย บิลแชร์ และค่าใช้จ่ายโปรเจกต์",
+    name: "Expense Orbit",
+    short_name: "Orbit",
+    description: "Track household expenses, shared bills, and trip projects in one elegant app.",
     start_url: "/",
     display: "standalone",
     background_color: "#f6f7f9",
