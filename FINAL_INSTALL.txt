@@ -10,3 +10,5 @@ HOME EXPENSE CLOUD - FINAL
 Environment Variables ที่ต้องมี:
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+ไฟล์ jsconfig.json จำเป็นสำหรับ alias @/ เช่น @/lib/supabase/client
