@@ -1,0 +1,12 @@
+HOME EXPENSE CLOUD - FINAL
+
+วิธีวางทับโปรเจกต์เดิม:
+1. ลบไฟล์และโฟลเดอร์เดิมใน Repository
+2. อัปโหลดไฟล์และโฟลเดอร์ทั้งหมดจาก ZIP นี้
+3. ตรวจว่า package.json อยู่หน้าแรกของ Repository
+4. ตรวจว่าไม่มี tsconfig.json, next-env.d.ts, .ts หรือ .tsx
+5. ใน Vercel กด Redeploy และปิด Use existing Build Cache
+
+Environment Variables ที่ต้องมี:
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
