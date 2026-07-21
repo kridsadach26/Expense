@@ -924,7 +924,7 @@
 <dialog id="attachmentPinDialog">
   <div class="dialog-head"><strong>กรอกรหัสเข้าคลังไฟล์</strong><button class="btn btn-light" onclick="closeAttachmentPinDialog()">ปิด</button></div>
   <div class="dialog-body">
-    <input id="attachmentPinInput" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="6" class="hidden">
+    <input id="attachmentPinInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="6" aria-label="รหัสเข้าคลังไฟล์" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
     <div id="attachmentPinDisplay" class="pin-display">○ ○ ○ ○</div>
     <div id="attachmentPinMessage" class="muted" style="text-align:center;margin-bottom:12px">พิมพ์ตัวเลขจากคีย์บอร์ด หรือกดปุ่มด้านล่าง</div>
     <div class="pin-keypad">
@@ -2021,17 +2021,26 @@ $('restoreFile')?.addEventListener('change',async e=>{
 
 let attachmentPinBuffer='';
 let attachmentVaultFiles=[];
+let attachmentVaultEmbedded=new Map();
 function attachmentPin(){return String(appSettings.attachmentPin||'2604')}
 function renderAttachmentPin(){
   const len=Math.max(4,attachmentPin().length);
   const dots=Array.from({length:len},(_,i)=>i<attachmentPinBuffer.length?'●':'○').join(' ');
   $('attachmentPinDisplay').textContent=dots;
+  const input=$('attachmentPinInput');
+  if(input&&input.value!==attachmentPinBuffer)input.value=attachmentPinBuffer;
+}
+function focusAttachmentPinInput(){
+  const input=$('attachmentPinInput');
+  if(!input)return;
+  input.focus({preventScroll:true});
+  try{input.setSelectionRange(input.value.length,input.value.length)}catch{}
 }
 function openAttachmentPinDialog(){
   attachmentPinBuffer='';renderAttachmentPin();
   $('attachmentPinMessage').textContent='พิมพ์ตัวเลขจากคีย์บอร์ด หรือกดปุ่มด้านล่าง';
   attachmentPinDialog.showModal();
-  setTimeout(()=>$('attachmentPinInput')?.focus(),50);
+  setTimeout(focusAttachmentPinInput,80);
 }
 function closeAttachmentPinDialog(){attachmentPinDialog.close();attachmentPinBuffer=''}
 function pinKey(n){
@@ -2039,11 +2048,12 @@ function pinKey(n){
   attachmentPinBuffer+=String(n).replace(/\D/g,'');renderAttachmentPin();
   if(attachmentPinBuffer.length===attachmentPin().length)setTimeout(submitAttachmentPin,120);
 }
-function pinClear(){attachmentPinBuffer='';renderAttachmentPin();$('attachmentPinMessage').textContent='กรอกรหัสใหม่'}
+function pinClear(){attachmentPinBuffer='';renderAttachmentPin();$('attachmentPinMessage').textContent='กรอกรหัสใหม่';focusAttachmentPinInput()}
 function submitAttachmentPin(){
   if(attachmentPinBuffer!==attachmentPin()){
     attachmentPinBuffer='';renderAttachmentPin();
     $('attachmentPinMessage').textContent='รหัสไม่ถูกต้อง กรุณาลองใหม่';
+    focusAttachmentPinInput();
     return;
   }
   closeAttachmentPinDialog();attachmentVaultDialog.showModal();loadAttachmentVault();
@@ -2065,23 +2075,66 @@ function attachmentFileIcon(file){
   if(type.includes('pdf'))return '📄';
   return '📎';
 }
+function dataUrlMime(dataUrl=''){
+  const m=String(dataUrl).match(/^data:([^;,]+)/i);
+  return m?.[1]||'application/octet-stream';
+}
+function collectEmbeddedAttachments(){
+  const files=[];
+  attachmentVaultEmbedded=new Map();
+  const add=(dataUrl,name,createdAt,source)=>{
+    if(typeof dataUrl!=='string'||!dataUrl.startsWith('data:'))return;
+    const id='embedded-'+crypto.randomUUID();
+    attachmentVaultEmbedded.set(id,dataUrl);
+    files.push({id,kind:'embedded',path:name,bucket:'ข้อมูลในรายการ',createdAt:createdAt||'',size:dataUrlBytes(dataUrl),mimetype:dataUrlMime(dataUrl),source});
+  };
+  entries.forEach((e,ei)=>(e.images||[]).forEach((img,ii)=>add(img,`${e.merchant||'รายการ'}-${e.date||ei+1}-${ii+1}.jpg`,e.createdAt||e.date,`รายรับรายจ่าย · ${e.merchant||'ไม่ระบุชื่อ'}`)));
+  projects.forEach((p,pi)=>(p.expenses||[]).forEach((e,ei)=>(e.images||[]).forEach((img,ii)=>add(img,`${p.name||'โปรเจกต์'}-${e.name||'ค่าใช้จ่าย'}-${ii+1}.jpg`,e.createdAt||e.date,`โปรเจกต์ · ${p.name||pi+1}`))));
+  Object.entries(profiles||{}).forEach(([key,profile])=>add(profile?.photo,`รูปโปรไฟล์-${profile?.name||key}.jpg`,'',`รูปโปรไฟล์ · ${profile?.name||key}`));
+  return files;
+}
 function renderAttachmentVault(){
   const q=($('attachmentVaultSearch')?.value||'').trim().toLowerCase();
   const sort=$('attachmentVaultSort')?.value||'newest';
-  let files=attachmentVaultFiles.filter(f=>!q||String(f.path||'').toLowerCase().includes(q));
-  files=[...files].sort((a,b)=>sort==='oldest'?new Date(a.createdAt)-new Date(b.createdAt):sort==='largest'?b.size-a.size:sort==='smallest'?a.size-b.size:new Date(b.createdAt)-new Date(a.createdAt));
+  let files=attachmentVaultFiles.filter(f=>!q||`${f.path||''} ${f.source||''}`.toLowerCase().includes(q));
+  files=[...files].sort((a,b)=>sort==='oldest'?new Date(a.createdAt||0)-new Date(b.createdAt||0):sort==='largest'?Number(b.size||0)-Number(a.size||0):sort==='smallest'?Number(a.size||0)-Number(b.size||0):new Date(b.createdAt||0)-new Date(a.createdAt||0));
   const total=files.reduce((sum,f)=>sum+Number(f.size||0),0);
   $('attachmentVaultSummary').textContent=`แสดง ${files.length.toLocaleString('th-TH')} ไฟล์ · รวม ${formatBytes(total)}`;
-  $('attachmentVaultList').innerHTML=files.length?files.map(f=>`<div class="attachment-view-row"><div class="attachment-thumb" style="display:grid;place-items:center;font-size:24px">${attachmentFileIcon(f)}</div><div><strong>${escapeHtml((f.path||'').split('/').pop()||'ไฟล์แนบ')}</strong><div class="muted">${escapeHtml(f.bucket||'receipts')} · ${f.createdAt?new Date(f.createdAt).toLocaleString('th-TH'):'ไม่ทราบวันที่'}</div><div class="muted">${formatBytes(f.size)}${f.mimetype?' · '+escapeHtml(f.mimetype):''}</div></div><div class="actions"><button class="btn btn-light" onclick="openAttachmentFile('${encodeURIComponent(f.bucket||'receipts')}','${encodeURIComponent(f.path||'')}')">เปิดดู</button></div></div>`).join(''):'<div class="empty">ไม่พบไฟล์แนบ</div>';
+  $('attachmentVaultList').innerHTML=files.length?files.map(f=>{
+    const openAction=f.kind==='embedded'?`openEmbeddedAttachment('${f.id}')`:`openAttachmentFile('${encodeURIComponent(f.bucket||'receipts')}','${encodeURIComponent(f.path||'')}')`;
+    return `<div class="attachment-view-row"><div class="attachment-thumb" style="display:grid;place-items:center;font-size:24px">${attachmentFileIcon(f)}</div><div><strong>${escapeHtml((f.path||'').split('/').pop()||'ไฟล์แนบ')}</strong><div class="muted">${escapeHtml(f.source||f.bucket||'receipts')} · ${f.createdAt?new Date(f.createdAt).toLocaleString('th-TH'):'ไม่ทราบวันที่'}</div><div class="muted">${formatBytes(f.size)}${f.mimetype?' · '+escapeHtml(f.mimetype):''}</div></div><div class="actions"><button class="btn btn-light" onclick="${openAction}">เปิดดู</button></div></div>`;
+  }).join(''):'<div class="empty">ไม่พบไฟล์แนบ</div>';
 }
 async function loadAttachmentVault(){
   $('attachmentVaultList').innerHTML='<div class="empty">กำลังโหลดไฟล์แนบทั้งหมด...</div>';
   $('attachmentVaultSummary').textContent='';
+  const embedded=collectEmbeddedAttachments();
+  let cloud=[];
+  let cloudError='';
   try{
     const res=await fetch('/api/storage/files?bucket=receipts&olderThanDays=0&limit=1000',{cache:'no-store'});
-    const data=await res.json();if(!res.ok)throw new Error(data.error||'โหลดไฟล์ไม่สำเร็จ');
-    attachmentVaultFiles=data.files||[];renderAttachmentVault();
-  }catch(err){$('attachmentVaultList').innerHTML=`<div class="notice danger">${escapeHtml(err.message)}</div>`}
+    const data=await res.json();if(!res.ok)throw new Error(data.error||'โหลดไฟล์ใน Storage ไม่สำเร็จ');
+    cloud=(data.files||[]).map(f=>({...f,kind:'storage',source:`Storage · ${f.bucket||'receipts'}`}));
+  }catch(err){cloudError=err.message||'โหลดไฟล์ใน Storage ไม่สำเร็จ'}
+  attachmentVaultFiles=[...embedded,...cloud];
+  renderAttachmentVault();
+  if(cloudError){
+    const notice=document.createElement('div');
+    notice.className='notice';
+    notice.style.marginBottom='10px';
+    notice.textContent=`แสดงไฟล์ที่แนบอยู่ในรายการแล้ว แต่โหลดไฟล์จาก Storage ไม่สำเร็จ: ${cloudError}`;
+    $('attachmentVaultList').prepend(notice);
+  }
+}
+function openEmbeddedAttachment(id){
+  const dataUrl=attachmentVaultEmbedded.get(id);
+  if(!dataUrl)return alert('ไม่พบข้อมูลไฟล์แนบ');
+  const w=window.open('','_blank');
+  if(!w)return alert('เบราว์เซอร์บล็อกหน้าต่างใหม่ กรุณาอนุญาต Pop-up');
+  if(dataUrlMime(dataUrl).startsWith('image/')){
+    w.document.write(`<title>ไฟล์แนบ</title><style>body{margin:0;background:#111;display:grid;place-items:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style><img src="${dataUrl}">`);
+    w.document.close();
+  }else w.location.href=dataUrl;
 }
 async function openAttachmentFile(bucket,path){
   try{
@@ -2095,13 +2148,20 @@ $('changeAttachmentPinBtn')?.addEventListener('click',changeAttachmentPin);
 $('refreshAttachmentVaultBtn')?.addEventListener('click',loadAttachmentVault);
 $('attachmentVaultSearch')?.addEventListener('input',renderAttachmentVault);
 $('attachmentVaultSort')?.addEventListener('change',renderAttachmentVault);
-document.addEventListener('keydown',e=>{
+$('attachmentPinInput')?.addEventListener('input',e=>{
+  attachmentPinBuffer=String(e.target.value||'').replace(/\D/g,'').slice(0,6);
+  renderAttachmentPin();
+  if(attachmentPinBuffer.length===attachmentPin().length)setTimeout(submitAttachmentPin,120);
+});
+$('attachmentPinDialog')?.addEventListener('click',focusAttachmentPinInput);
+window.addEventListener('keydown',e=>{
   if(!$('attachmentPinDialog')?.open)return;
   if(/^\d$/.test(e.key)){e.preventDefault();pinKey(e.key)}
-  else if(e.key==='Backspace'){e.preventDefault();attachmentPinBuffer=attachmentPinBuffer.slice(0,-1);renderAttachmentPin()}
+  else if(e.code?.startsWith('Numpad')&&/^\d$/.test(e.code.slice(6))){e.preventDefault();pinKey(e.code.slice(6))}
+  else if(e.key==='Backspace'||e.key==='Delete'){e.preventDefault();attachmentPinBuffer=attachmentPinBuffer.slice(0,-1);renderAttachmentPin()}
   else if(e.key==='Enter'){e.preventDefault();submitAttachmentPin()}
   else if(e.key==='Escape')closeAttachmentPinDialog();
-});
+},true);
 function formatBytes(bytes){
   const n=Number(bytes||0);
   if(n<1024)return n.toLocaleString('th-TH')+' B';
