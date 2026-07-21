@@ -1,0 +1,11 @@
+Harmony Haven — Calendar + Tasks + Reminders
+
+1) Replace public/app.html with the included file.
+2) Add public/sw.js.
+3) Run supabase/migrations/004_calendar_notifications.sql after reviewing household/member RLS predicates.
+4) Deploy to Vercel over HTTPS.
+5) On first use, allow browser notifications.
+
+Included: monthly calendar, daily agenda, bills/tasks/events, per-user assignees, recurring schedules, advance reminders, project links, mark paid/done, automatic expense creation, notification center, badges, toast and PWA service worker.
+
+Browser-side reminders work while the PWA/browser is active. Full server push while all devices are closed still requires a scheduled Supabase Edge Function and VAPID keys.

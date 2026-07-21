@@ -1,27 +1,4 @@
-const CACHE = "baan-rao-v1";
-const APP_SHELL = ["/", "/manifest.webmanifest", "/icons/icon-192.svg", "/icons/icon-512.svg"];
-
-self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(APP_SHELL)));
-  self.skipWaiting();
-});
-
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
-  );
-  self.clients.claim();
-});
-
-self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE).then((cache) => cache.put(event.request, clone));
-        return response;
-      })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/")))
-  );
-});
+self.addEventListener('install',()=>self.skipWaiting());
+self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
+self.addEventListener('push',event=>{let data={};try{data=event.data?.json()||{}}catch{data={title:'Harmony Haven',body:event.data?.text()||''}}event.waitUntil(self.registration.showNotification(data.title||'Harmony Haven',{body:data.body||'',icon:'/icon-192.png',badge:'/icon-192.png',data:{url:data.url||'/app.html?page=calendar'}}))});
+self.addEventListener('notificationclick',event=>{event.notification.close();const url=event.notification.data?.url||'/app.html?page=calendar';event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(list=>{for(const c of list){if('focus'in c){c.navigate(url);return c.focus()}}return clients.openWindow(url)}))});
