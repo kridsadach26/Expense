@@ -2105,7 +2105,7 @@ setInterval(checkDueCalendarReminders,60*60*1000);
 setTimeout(checkDueCalendarReminders,2500);
 
 function renderAll(){renderDashboard();renderHistory();renderSettle();renderProjects();renderCalendar();renderBudgets();renderRecurring();renderCards();renderNotifications();updateNotificationBadge();applyDashboardSettings();}
-bootstrapCloudState().catch(err=>{console.error(err);setCloudStatus('โหลด Cloud ไม่สำเร็จ','error');alert('ไม่สามารถโหลดข้อมูลจาก Cloud ได้ กรุณาตรวจสอบการติดตั้ง SQL และการเชื่อมต่อ Supabase');});
+bootstrapCloudState().catch(err=>{console.error(err);setCloudStatus('โหลด Cloud ไม่สำเร็จ','error');alert(`ไม่สามารถโหลดข้อมูลจาก Cloud ได้\n\nรายละเอียด: ${err?.message||'ไม่ทราบสาเหตุ'}\n\nให้รัน SQL 005_cloud_state_repair.sql และตรวจสอบ Environment Variables ใน Vercel`);});
 </script>
 
 </body>

@@ -1,0 +1,16 @@
+HARMONY HAVEN — CLOUD LOAD REPAIR
+
+1. เปิด Supabase > SQL Editor
+2. เปิดไฟล์ supabase/migrations/005_cloud_state_repair.sql แล้วกด Run ทั้งไฟล์
+3. ผลลัพธ์ท้ายสุดควรแสดง cloud_state_table = household_app_state และ profile_count มากกว่า 0
+4. ตรวจสอบ Vercel > Project Settings > Environment Variables ว่ามีครบ:
+   - NEXT_PUBLIC_SUPABASE_URL
+   - NEXT_PUBLIC_SUPABASE_ANON_KEY
+   - SUPABASE_SERVICE_ROLE_KEY
+5. Redeploy โดยเลือก Clear build cache / Redeploy without cache
+6. ออกจากระบบแล้วเข้าสู่ระบบใหม่ จากนั้นเปิดแอป
+
+หมายเหตุ:
+- SQL นี้ไม่ลบรายการเดิม
+- ถ้า SQL แจ้งว่า Missing public.households หรือ public.profiles ให้รันไฟล์ home-expense-supabase-repair.sql ของระบบหลักก่อน แล้วกลับมารัน 005 อีกครั้ง
+- app.html ในชุดนี้จะแสดงข้อความผิดพลาดจริงจาก API แทนข้อความทั่วไป เพื่อวิเคราะห์ได้ง่ายขึ้น
