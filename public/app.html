@@ -273,6 +273,15 @@
     .storage-actions>*{flex:1;min-width:170px}
     .storage-file-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
     .storage-file-row:last-child{border-bottom:0}
+    .attachment-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+    .attachment-toolbar>*{min-width:140px}
+    .attachment-view-row{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+    .attachment-view-row:last-child{border-bottom:0}
+    .attachment-thumb{width:52px;height:52px;border-radius:10px;object-fit:cover;background:#f3f4f6;border:1px solid var(--line)}
+    .pin-display{font-size:28px;letter-spacing:10px;text-align:center;font-weight:800;margin:8px 0 14px}
+    .pin-keypad{display:grid;grid-template-columns:repeat(3,72px);gap:10px;justify-content:center}
+    .pin-keypad button{height:56px;font-size:20px;font-weight:700}
+    @media(max-width:600px){.attachment-view-row{grid-template-columns:46px 1fr}.attachment-view-row .actions{grid-column:2}.attachment-thumb{width:46px;height:46px}.pin-keypad{grid-template-columns:repeat(3,64px)}}
     @media(max-width:800px){
       .storage-metrics{grid-template-columns:1fr 1fr}
       .storage-actions{display:grid;grid-template-columns:1fr}
@@ -719,6 +728,16 @@
           </div>
         </div>
 
+        <div class="setting-card">
+          <h3 style="margin-top:0">คลังไฟล์แนบ</h3>
+          <p class="muted">ดูไฟล์แนบทั้งหมดพร้อมขนาดไฟล์ โดยต้องกรอกรหัสตัวเลขก่อนเข้า</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="openAttachmentVaultBtn" class="btn btn-dark" type="button">ดูไฟล์แนบทั้งหมด</button>
+            <button id="changeAttachmentPinBtn" class="btn btn-light" type="button">เปลี่ยนรหัสเข้าคลังไฟล์</button>
+          </div>
+          <div class="muted" style="margin-top:10px">รหัสเริ่มต้น 2604 กรุณาเปลี่ยนหลังติดตั้ง</div>
+        </div>
+
         <div class="setting-card full-storage-card">
           <h3 style="margin-top:0">พื้นที่จัดเก็บและไฟล์แนบ</h3>
           <p class="muted">แสดงข้อมูลจาก Supabase Storage แบบเรียลไทม์ และพื้นที่ในเบราว์เซอร์เครื่องนี้</p>
@@ -901,6 +920,30 @@
   </form></div>
 </dialog>
 <dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="notificationCenterDialog.close()">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
+
+<dialog id="attachmentPinDialog">
+  <div class="dialog-head"><strong>กรอกรหัสเข้าคลังไฟล์</strong><button class="btn btn-light" onclick="closeAttachmentPinDialog()">ปิด</button></div>
+  <div class="dialog-body">
+    <input id="attachmentPinInput" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="6" class="hidden">
+    <div id="attachmentPinDisplay" class="pin-display">○ ○ ○ ○</div>
+    <div id="attachmentPinMessage" class="muted" style="text-align:center;margin-bottom:12px">พิมพ์ตัวเลขจากคีย์บอร์ด หรือกดปุ่มด้านล่าง</div>
+    <div class="pin-keypad">
+      <button class="btn btn-light" onclick="pinKey('1')">1</button><button class="btn btn-light" onclick="pinKey('2')">2</button><button class="btn btn-light" onclick="pinKey('3')">3</button>
+      <button class="btn btn-light" onclick="pinKey('4')">4</button><button class="btn btn-light" onclick="pinKey('5')">5</button><button class="btn btn-light" onclick="pinKey('6')">6</button>
+      <button class="btn btn-light" onclick="pinKey('7')">7</button><button class="btn btn-light" onclick="pinKey('8')">8</button><button class="btn btn-light" onclick="pinKey('9')">9</button>
+      <button class="btn btn-light" onclick="pinClear()">ล้าง</button><button class="btn btn-light" onclick="pinKey('0')">0</button><button class="btn btn-primary" onclick="submitAttachmentPin()">ตกลง</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="attachmentVaultDialog" style="width:min(920px,96vw)">
+  <div class="dialog-head"><strong>คลังไฟล์แนบทั้งหมด</strong><button class="btn btn-light" onclick="attachmentVaultDialog.close()">ปิด</button></div>
+  <div class="dialog-body">
+    <div class="attachment-toolbar"><input id="attachmentVaultSearch" placeholder="ค้นหาชื่อไฟล์"><select id="attachmentVaultSort"><option value="newest">ใหม่ล่าสุด</option><option value="oldest">เก่าสุด</option><option value="largest">ขนาดใหญ่สุด</option><option value="smallest">ขนาดเล็กสุด</option></select><button id="refreshAttachmentVaultBtn" class="btn btn-light">รีเฟรช</button></div>
+    <div id="attachmentVaultSummary" class="muted"></div>
+    <div id="attachmentVaultList" style="margin-top:10px"></div>
+  </div>
+</dialog>
 <div id="toastStack" class="toast-stack"></div>
 
 <script>
@@ -1893,7 +1936,7 @@ function renderCards(){
     const monthLabel=new Date(selectedMonth+'-01T12:00:00').toLocaleDateString('th-TH',{month:'long',year:'numeric'});
     const rows=tx.length?tx.map(e=>`<div class="list-row"><div><strong>${escapeHtml(e.merchant||e.category||'รายการ')}</strong><div class="muted">${e.date} · ${escapeHtml(e.category||'')} · ${escapeHtml(e.payer||'')}</div></div><strong class="expense">${money(entryBaseAmount(e))}</strong></div>`).join(''):'<div class="empty" style="margin-top:10px">ยังไม่มีรายการรูดในเดือนนี้</div>';
     const detail=isOpen?`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border,#e5e7eb)" onclick="event.stopPropagation()"><div class="form-grid"><div><label>เลือกเดือน</label><input type="month" value="${selectedMonth}" onchange="setCardMonth('${c.id}',this.value)"></div><div class="metric"><div class="label">ยอดรวม ${monthLabel}</div><div class="value expense">${money(selectedTotal)}</div><div class="muted">${tx.length} รายการ</div></div></div><div style="margin-top:10px">${rows}</div></div>`:'';
-    return `<div class="card" style="cursor:pointer" onclick="toggleCardDetails('${c.id}')"><div class="list-row"><div><strong>${escapeHtml(c.name)}</strong><div class="muted">${escapeHtml(profiles[c.owner]?.name||c.owner)} · ตัดรอบวันที่ ${c.cutDay} · ชำระวันที่ ${c.dueDay}</div></div><div class="actions"><span class="muted">${isOpen?'ซ่อนรายการ':'คลิกเพื่อดูรายการ'}</span><button class="btn btn-danger" onclick="event.stopPropagation();removeCard(${i})">ลบ</button></div></div><div class="metric"><div class="label">ยอดรูดเดือนนี้</div><div class="value expense">${money(currentTotal)}</div><div class="muted">${currentTx.length} รายการ</div></div>${detail}</div>`;
+    return `<div class="card" style="cursor:pointer" onclick="toggleCardDetails('${c.id}')"><div class="list-row"><div><strong>${escapeHtml(c.name)}</strong><div class="muted">${escapeHtml(profiles[c.owner]?.name||c.owner)} · ตัดรอบวันที่ ${c.cutDay} · ชำระวันที่ ${c.dueDay}</div></div><div class="actions"><span class="muted">${isOpen?'ซ่อนรายการ':'คลิกเพื่อดูรายการ'}</span><button class="btn btn-light" onclick="event.stopPropagation();editCardName(${i})">แก้ไขชื่อ</button><button class="btn btn-danger" onclick="event.stopPropagation();removeCard(${i})">ลบ</button></div></div><div class="metric"><div class="label">ยอดรูดเดือนนี้</div><div class="value expense">${money(currentTotal)}</div><div class="muted">${currentTx.length} รายการ</div></div>${detail}</div>`;
   }).join(''):'<div class="card empty">ยังไม่มีข้อมูลบัตรเครดิต</div>';
   renderEntryCardOptions();
 }
@@ -1903,6 +1946,16 @@ $('addCardBtn').onclick=()=>{
   creditCards.push({id:crypto.randomUUID(),name,owner:$('cardOwner').value,cutDay:Number($('cardCutDay').value),dueDay:Number($('cardDueDay').value)});
   saveFeatureData();$('cardName').value='';renderCards();renderNotifications();
 };
+function editCardName(i){
+  const card=creditCards[i];
+  if(!card)return;
+  const name=prompt('ชื่อบัตรเครดิต',card.name||'');
+  if(name===null)return;
+  const clean=name.trim();
+  if(!clean)return alert('กรุณาระบุชื่อบัตร');
+  card.name=clean;
+  saveFeatureData();renderCards();renderNotifications();
+}
 function removeCard(i){
   const c=creditCards[i];
   const used=entries.some(e=>e.cardId===c?.id);
@@ -1966,6 +2019,89 @@ $('restoreFile')?.addEventListener('change',async e=>{
 });
 
 
+let attachmentPinBuffer='';
+let attachmentVaultFiles=[];
+function attachmentPin(){return String(appSettings.attachmentPin||'2604')}
+function renderAttachmentPin(){
+  const len=Math.max(4,attachmentPin().length);
+  const dots=Array.from({length:len},(_,i)=>i<attachmentPinBuffer.length?'●':'○').join(' ');
+  $('attachmentPinDisplay').textContent=dots;
+}
+function openAttachmentPinDialog(){
+  attachmentPinBuffer='';renderAttachmentPin();
+  $('attachmentPinMessage').textContent='พิมพ์ตัวเลขจากคีย์บอร์ด หรือกดปุ่มด้านล่าง';
+  attachmentPinDialog.showModal();
+  setTimeout(()=>$('attachmentPinInput')?.focus(),50);
+}
+function closeAttachmentPinDialog(){attachmentPinDialog.close();attachmentPinBuffer=''}
+function pinKey(n){
+  if(attachmentPinBuffer.length>=6)return;
+  attachmentPinBuffer+=String(n).replace(/\D/g,'');renderAttachmentPin();
+  if(attachmentPinBuffer.length===attachmentPin().length)setTimeout(submitAttachmentPin,120);
+}
+function pinClear(){attachmentPinBuffer='';renderAttachmentPin();$('attachmentPinMessage').textContent='กรอกรหัสใหม่'}
+function submitAttachmentPin(){
+  if(attachmentPinBuffer!==attachmentPin()){
+    attachmentPinBuffer='';renderAttachmentPin();
+    $('attachmentPinMessage').textContent='รหัสไม่ถูกต้อง กรุณาลองใหม่';
+    return;
+  }
+  closeAttachmentPinDialog();attachmentVaultDialog.showModal();loadAttachmentVault();
+}
+function changeAttachmentPin(){
+  const current=prompt('กรอกรหัสปัจจุบัน');
+  if(current===null)return;
+  if(current!==attachmentPin())return alert('รหัสปัจจุบันไม่ถูกต้อง');
+  const next=prompt('ตั้งรหัสตัวเลขใหม่ 4–6 หลัก');
+  if(next===null)return;
+  if(!/^\d{4,6}$/.test(next))return alert('รหัสต้องเป็นตัวเลข 4–6 หลัก');
+  const confirmPin=prompt('กรอกรหัสใหม่อีกครั้ง');
+  if(confirmPin!==next)return alert('รหัสยืนยันไม่ตรงกัน');
+  appSettings.attachmentPin=next;queueCloudSave();alert('เปลี่ยนรหัสเข้าคลังไฟล์แล้ว');
+}
+function attachmentFileIcon(file){
+  const type=String(file.mimetype||'');
+  if(type.startsWith('image/'))return '🖼️';
+  if(type.includes('pdf'))return '📄';
+  return '📎';
+}
+function renderAttachmentVault(){
+  const q=($('attachmentVaultSearch')?.value||'').trim().toLowerCase();
+  const sort=$('attachmentVaultSort')?.value||'newest';
+  let files=attachmentVaultFiles.filter(f=>!q||String(f.path||'').toLowerCase().includes(q));
+  files=[...files].sort((a,b)=>sort==='oldest'?new Date(a.createdAt)-new Date(b.createdAt):sort==='largest'?b.size-a.size:sort==='smallest'?a.size-b.size:new Date(b.createdAt)-new Date(a.createdAt));
+  const total=files.reduce((sum,f)=>sum+Number(f.size||0),0);
+  $('attachmentVaultSummary').textContent=`แสดง ${files.length.toLocaleString('th-TH')} ไฟล์ · รวม ${formatBytes(total)}`;
+  $('attachmentVaultList').innerHTML=files.length?files.map(f=>`<div class="attachment-view-row"><div class="attachment-thumb" style="display:grid;place-items:center;font-size:24px">${attachmentFileIcon(f)}</div><div><strong>${escapeHtml((f.path||'').split('/').pop()||'ไฟล์แนบ')}</strong><div class="muted">${escapeHtml(f.bucket||'receipts')} · ${f.createdAt?new Date(f.createdAt).toLocaleString('th-TH'):'ไม่ทราบวันที่'}</div><div class="muted">${formatBytes(f.size)}${f.mimetype?' · '+escapeHtml(f.mimetype):''}</div></div><div class="actions"><button class="btn btn-light" onclick="openAttachmentFile('${encodeURIComponent(f.bucket||'receipts')}','${encodeURIComponent(f.path||'')}')">เปิดดู</button></div></div>`).join(''):'<div class="empty">ไม่พบไฟล์แนบ</div>';
+}
+async function loadAttachmentVault(){
+  $('attachmentVaultList').innerHTML='<div class="empty">กำลังโหลดไฟล์แนบทั้งหมด...</div>';
+  $('attachmentVaultSummary').textContent='';
+  try{
+    const res=await fetch('/api/storage/files?bucket=receipts&olderThanDays=0&limit=1000',{cache:'no-store'});
+    const data=await res.json();if(!res.ok)throw new Error(data.error||'โหลดไฟล์ไม่สำเร็จ');
+    attachmentVaultFiles=data.files||[];renderAttachmentVault();
+  }catch(err){$('attachmentVaultList').innerHTML=`<div class="notice danger">${escapeHtml(err.message)}</div>`}
+}
+async function openAttachmentFile(bucket,path){
+  try{
+    const res=await fetch(`/api/storage/url?bucket=${bucket}&path=${path}`,{cache:'no-store'});
+    const data=await res.json();if(!res.ok)throw new Error(data.error||'เปิดไฟล์ไม่สำเร็จ');
+    window.open(data.url,'_blank','noopener,noreferrer');
+  }catch(err){alert(err.message)}
+}
+$('openAttachmentVaultBtn')?.addEventListener('click',openAttachmentPinDialog);
+$('changeAttachmentPinBtn')?.addEventListener('click',changeAttachmentPin);
+$('refreshAttachmentVaultBtn')?.addEventListener('click',loadAttachmentVault);
+$('attachmentVaultSearch')?.addEventListener('input',renderAttachmentVault);
+$('attachmentVaultSort')?.addEventListener('change',renderAttachmentVault);
+document.addEventListener('keydown',e=>{
+  if(!$('attachmentPinDialog')?.open)return;
+  if(/^\d$/.test(e.key)){e.preventDefault();pinKey(e.key)}
+  else if(e.key==='Backspace'){e.preventDefault();attachmentPinBuffer=attachmentPinBuffer.slice(0,-1);renderAttachmentPin()}
+  else if(e.key==='Enter'){e.preventDefault();submitAttachmentPin()}
+  else if(e.key==='Escape')closeAttachmentPinDialog();
+});
 function formatBytes(bytes){
   const n=Number(bytes||0);
   if(n<1024)return n.toLocaleString('th-TH')+' B';
