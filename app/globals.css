@@ -194,3 +194,15 @@ input { width: 100%; border: 1px solid #dfe2e8; border-radius: 14px; padding: 13
 @media (max-width: 640px) {
   .loginCard { width: min(100%, 440px); }
 }
+
+
+/* Mobile login refinement */
+@media (max-width: 640px) {
+  .center { padding: 12px; }
+  .loginCard { padding: 18px; border-radius: 24px; }
+  .profileGrid { grid-template-columns: 1fr; }
+  .pinKey, .pinKeypadSpacer { min-height: 56px; }
+  .pinKey { font-size: 22px; }
+  .orbitMark { width: 92px; height: 92px; }
+  .titleBlock h1 { font-size: 30px; }
+}

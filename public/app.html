@@ -172,7 +172,79 @@
       header{padding:13px}
       .brand{font-size:19px}
     }
-  </style>
+  
+/* Mobile refinement patch */
+@media(max-width:800px){
+  body{overflow-x:hidden}
+  .app{width:100%;margin:0;max-width:none}
+  header{position:sticky;top:0;padding:10px 12px;border-radius:0 0 16px 16px}
+  .header-row{gap:8px}
+  .brand{font-size:18px}
+  .sub{font-size:11px}
+  .user-switch{gap:6px}
+  .user-switch .small{font-size:10px}
+  .user-switch strong{font-size:14px}
+  .user-switch .btn{padding:8px 10px!important}
+  nav{top:68px;padding:10px 12px;gap:8px;scroll-snap-type:x proximity;scrollbar-width:none;box-shadow:0 5px 14px rgba(26,31,44,.06)}
+  nav::-webkit-scrollbar{display:none}
+  nav:after{content:"";position:sticky;right:0;min-width:28px;align-self:stretch;background:linear-gradient(90deg,transparent,#fff);pointer-events:none}
+  nav button{scroll-snap-align:start;padding:10px 13px;font-size:14px}
+  main{padding:12px}
+  .card{border-radius:14px;padding:14px}
+  .section-title{margin:18px 0 10px}
+  .section-title h2{font-size:17px}
+  .summary{grid-template-columns:1fr 1fr;gap:10px}
+  .metric .label{font-size:13px}
+  .metric .value{font-size:22px}
+  .period-controls{grid-template-columns:1fr;gap:12px}
+  .period-picker{display:grid;grid-template-columns:1fr;gap:10px}
+  .period-picker>div{width:100%}
+  .period-tabs{display:grid;grid-template-columns:repeat(3,1fr)}
+  .period-tabs button{width:100%}
+  form{grid-template-columns:1fr;gap:14px}
+  .full{grid-column:auto}
+  input,select,textarea{font-size:16px;padding:12px}
+  label{font-size:13px}
+  .toolbar{display:grid;grid-template-columns:1fr;gap:10px}
+  .toolbar>*{min-width:0;width:100%}
+  .form-inline{grid-template-columns:1fr}
+  .settings-grid{grid-template-columns:1fr}
+  .project-grid{grid-template-columns:1fr}
+  .project-summary{grid-template-columns:1fr 1fr;gap:10px}
+  .settlement{grid-template-columns:1fr}
+  .project-toolbar{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .project-toolbar .btn{width:100%}
+  .split-row,.expense-split-row{grid-template-columns:1fr}
+  table{display:block;overflow-x:auto;white-space:nowrap}
+  th,td{font-size:13px;padding:10px 8px}
+  .empty{padding:20px 12px}
+  .chart{height:150px}
+  dialog{width:calc(100% - 16px);max-width:none;max-height:92dvh;border-radius:18px;margin:auto}
+  .dialog-head{position:sticky;top:0;z-index:2;background:#fff;padding:14px}
+  .dialog-body{padding:14px;max-height:calc(92dvh - 60px);overflow:auto}
+  dialog .grid[style*="grid-template-columns"]{grid-template-columns:1fr!important}
+  .dialog-body .full[style*="text-align:right"]{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(255,255,255,.7),#fff 35%);padding-top:12px}
+  .dialog-body .full[style*="text-align:right"] .btn{width:100%;padding:13px 16px}
+  .share-box{grid-template-columns:1fr}
+  .share-box img{width:160px;height:160px;margin:auto}
+  .preview{width:92px;height:92px}
+  .profile-editor{grid-template-columns:64px 1fr}
+  .profile-photo{width:64px;height:64px}
+  .future-item{align-items:flex-start}
+  .future-item .btn{flex:none}
+}
+@media(max-width:480px){
+  .summary{grid-template-columns:1fr 1fr}
+  .project-summary{grid-template-columns:1fr 1fr}
+  .header-row{align-items:flex-start}
+  .user-switch{align-items:flex-start}
+  .section-title{align-items:flex-start;gap:10px}
+  .section-title .btn{flex:none}
+  .project-toolbar{grid-template-columns:1fr}
+  .bill-grid{grid-template-columns:1fr}
+}
+
+</style>
 </head>
 <body>
 
