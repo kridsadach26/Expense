@@ -262,6 +262,11 @@
       .storage-file-row .storage-size{grid-column:2}
     }
 
+
+.cloud-sync-status{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#5f6878;background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.9);padding:4px 8px;border-radius:999px;white-space:nowrap}
+.cloud-sync-status.syncing{color:#a65d00}.cloud-sync-status.ok{color:#237a43}.cloud-sync-status.error{color:#b73737;background:#fff0f0}
+@media(max-width:800px){.cloud-sync-status{font-size:10px;padding:3px 6px}}
+
 </style>
 </head>
 <body>
@@ -424,6 +429,7 @@
             </div>
             <input id="images" type="file" accept="image/*" multiple class="hidden" />
             <input id="cameraImages" type="file" accept="image/*" capture="environment" class="hidden" />
+            <div class="muted" style="margin-top:8px">ระบบจะย่อและบีบอัดรูปอัตโนมัติก่อนบันทึกขึ้น Cloud (รูปละประมาณไม่เกิน 450 KB)</div>
             <div class="muted" style="margin-top:8px">อัปโหลดเลือกได้หลายรูป ส่วนถ่ายรูปจะเปิดกล้องหลังของมือถือ</div>
             <div id="preview" class="preview-wrap" style="margin-top:10px"></div>
           </div>
@@ -789,6 +795,7 @@
         </div>
         <input id="projectExpenseImages" type="file" accept="image/*" multiple class="hidden">
         <input id="projectExpenseCamera" type="file" accept="image/*" capture="environment" class="hidden">
+        <div class="muted" style="margin-top:8px">รูปจะถูกย่อและบีบอัดอัตโนมัติก่อนบันทึกขึ้น Cloud</div>
         <div class="muted" style="margin-top:8px">ต้องแนบอย่างน้อย 1 รูปก่อนบันทึก สามารถเพิ่มหลายรูปและลบรูปที่เลือกผิดได้</div>
         <div id="projectExpensePreview" class="preview-wrap" style="margin-top:8px"></div>
       </div>
@@ -857,6 +864,62 @@ let creditCards = JSON.parse(localStorage.getItem('home-expense-cards') || '[]')
 let projects = JSON.parse(localStorage.getItem('home-expense-projects') || '[]');
 let currentProjectId = null;
 let projectExpenseImagesData = [];
+let cloudReady=false;
+let cloudSaveTimer=null;
+let cloudSaving=false;
+let cloudSaveAgain=false;
+const cloudDataKeys=[
+  'home-expense-entries','home-expense-settings','home-expense-profiles','home-expense-categories',
+  'home-expense-budgets','home-expense-recurring','home-expense-cards','home-expense-projects'
+];
+function cloudStateSnapshot(){
+  return {schemaVersion:1,entries,appSettings,profiles,categories,budgets,recurringItems,creditCards,projects};
+}
+function setCloudStatus(text,type=''){
+  const el=$('cloudSyncStatus');if(!el)return;
+  el.textContent=text;el.className='cloud-sync-status '+type;
+}
+function applyCloudState(state={}){
+  entries=Array.isArray(state.entries)?state.entries:[];
+  appSettings=state.appSettings&&typeof state.appSettings==='object'?state.appSettings:{};
+  profiles=state.profiles&&typeof state.profiles==='object'?state.profiles:profiles;
+  categories=Array.isArray(state.categories)&&state.categories.length?state.categories:categories;
+  budgets=Array.isArray(state.budgets)?state.budgets:[];
+  recurringItems=Array.isArray(state.recurringItems)?state.recurringItems:[];
+  creditCards=Array.isArray(state.creditCards)?state.creditCards:[];
+  projects=Array.isArray(state.projects)?state.projects:[];
+}
+function clearLegacyCloudData(){cloudDataKeys.forEach(k=>localStorage.removeItem(k));}
+async function saveCloudState(){
+  if(!cloudReady){return;}
+  if(cloudSaving){cloudSaveAgain=true;return;}
+  cloudSaving=true;setCloudStatus('กำลังบันทึก…','syncing');
+  try{
+    const res=await fetch('/api/cloud/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:cloudStateSnapshot()})});
+    const data=await res.json();if(!res.ok)throw new Error(data.error||'บันทึกไม่สำเร็จ');
+    clearLegacyCloudData();setCloudStatus('บันทึกบน Cloud แล้ว','ok');
+  }catch(err){console.error(err);setCloudStatus('Cloud มีปัญหา','error');}
+  finally{cloudSaving=false;if(cloudSaveAgain){cloudSaveAgain=false;saveCloudState();}}
+}
+function queueCloudSave(){
+  if(!cloudReady)return;
+  clearTimeout(cloudSaveTimer);setCloudStatus('รอบันทึก…','syncing');
+  cloudSaveTimer=setTimeout(saveCloudState,350);
+}
+async function bootstrapCloudState(){
+  setCloudStatus('กำลังโหลด Cloud…','syncing');
+  const legacy=cloudStateSnapshot();
+  const res=await fetch('/api/cloud/state',{cache:'no-store'});
+  const data=await res.json();if(!res.ok)throw new Error(data.error||'โหลด Cloud ไม่สำเร็จ');
+  if(data.exists){applyCloudState(data.state||{});}
+  else{
+    applyCloudState(legacy);cloudReady=true;await saveCloudState();
+  }
+  cloudReady=true;clearLegacyCloudData();
+  refreshProfilesUI();refreshCategories();applyDashboardSettings();renderAll();
+  setCloudStatus('ข้อมูล Cloud ล่าสุด','ok');
+}
+
 
 const supportedCurrencies=[
   ['THB','บาท'],['USD','ดอลลาร์สหรัฐ'],['JPY','เยน'],['EUR','ยูโร'],['GBP','ปอนด์'],
@@ -909,7 +972,7 @@ function refreshCategories(){
 function removeCategory(i){
   if(categories.length<=1) return alert('ต้องมีอย่างน้อย 1 หมวดหมู่');
   categories.splice(i,1);
-  localStorage.setItem('home-expense-categories',JSON.stringify(categories));
+  queueCloudSave();
   refreshCategories();
 }
 function applyDashboardSettings(){
@@ -939,7 +1002,7 @@ function logout(){
 
 
 function money(n){ return '฿' + Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:0,maximumFractionDigits:2}); }
-function save(){ localStorage.setItem('home-expense-entries', JSON.stringify(entries)); renderAll(); }
+function save(){ queueCloudSave(); renderAll(); }
 function today(){ return new Date().toISOString().slice(0,10); }
 $('date').value = today();
 $('filterMonth').value = today().slice(0,7);
@@ -1045,7 +1108,8 @@ async function addSelectedImages(files, replace=false){
     $('preview').innerHTML='';
   }
   for(const file of [...files]){
-    const data=await compressImage(file,1200,.72);
+    let data;
+    try{data=await compressImage(file,1600,.78,460800);}catch(err){alert(`${file.name||'รูปภาพ'}: ${err.message}`);continue;}
     imageData.push(data);
     const wrap=document.createElement('div');
     wrap.style.position='relative';
@@ -1069,22 +1133,51 @@ $('cameraImages')?.addEventListener('change', async e=>{
   e.target.value='';
 });
 
-function compressImage(file,maxWidth,quality){
-  return new Promise(resolve=>{
-    const reader=new FileReader();
-    reader.onload=ev=>{
+function dataUrlBytes(dataUrl=''){
+  const base64=(dataUrl.split(',')[1]||'');
+  return Math.ceil(base64.length*3/4);
+}
+
+async function compressImage(file,maxWidth=1600,quality=.78,maxBytes=460800){
+  if(!file || !String(file.type||'').startsWith('image/')) throw new Error('รองรับเฉพาะไฟล์รูปภาพ');
+  if(file.size>25*1024*1024) throw new Error('รูปต้นฉบับต้องมีขนาดไม่เกิน 25 MB');
+
+  const bitmap=await createImageBitmap(file, {imageOrientation:'from-image'}).catch(()=>null);
+  let source=bitmap;
+  if(!source){
+    source=await new Promise((resolve,reject)=>{
       const img=new Image();
-      img.onload=()=>{
-        const scale=Math.min(1,maxWidth/img.width);
-        const canvas=document.createElement('canvas');
-        canvas.width=img.width*scale; canvas.height=img.height*scale;
-        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-        resolve(canvas.toDataURL('image/jpeg',quality));
-      };
-      img.src=ev.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
+      const url=URL.createObjectURL(file);
+      img.onload=()=>{URL.revokeObjectURL(url);resolve(img);};
+      img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('ไม่สามารถอ่านรูปนี้ได้'));};
+      img.src=url;
+    });
+  }
+
+  let width=source.width||source.naturalWidth;
+  let height=source.height||source.naturalHeight;
+  const scale=Math.min(1,maxWidth/Math.max(width,height));
+  width=Math.max(1,Math.round(width*scale));
+  height=Math.max(1,Math.round(height*scale));
+
+  const render=(w,h,q)=>{
+    const canvas=document.createElement('canvas');
+    canvas.width=w;canvas.height=h;
+    const ctx=canvas.getContext('2d',{alpha:false});
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+    ctx.drawImage(source,0,0,w,h);
+    return canvas.toDataURL('image/jpeg',q);
+  };
+
+  let q=Math.min(.9,Math.max(.45,quality));
+  let data=render(width,height,q);
+  while(dataUrlBytes(data)>maxBytes && q>.5){q-=.08;data=render(width,height,q);}
+  while(dataUrlBytes(data)>maxBytes && width>720){
+    width=Math.round(width*.82);height=Math.round(height*.82);
+    data=render(width,height,Math.max(.5,q));
+  }
+  if(bitmap?.close) bitmap.close();
+  return data;
 }
 
 $('entryForm')?.addEventListener('submit',e=>{
@@ -1223,7 +1316,7 @@ $('exportBtn').onclick=()=>{
   const csv='\uFEFF'+rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='home-expense.csv';a.click();
 };
-$('clearBtn').onclick=()=>{if(confirm('ล้างข้อมูลทั้งหมดในเครื่องนี้?')){
+$('clearBtn').onclick=()=>{if(confirm('ล้างข้อมูลส่วนกลางบน Cloud ทั้งหมดหรือไม่?')){
   entries=[];budgets=[];recurringItems=[];creditCards=[];projects=[];saveFeatureData();saveProjects();save();
 }};
 $('demoBtn').onclick=()=>{
@@ -1238,9 +1331,11 @@ $('demoBtn').onclick=()=>{
 
 async function readProfileImage(input, key){
   if(!input.files?.[0]) return;
-  const data=await compressImage(input.files[0],500,.8);
-  profiles[key].photo=data;
-  refreshProfilesUI();
+  try{
+    const data=await compressImage(input.files[0],640,.82,184320);
+    profiles[key].photo=data;
+    refreshProfilesUI();
+  }catch(err){alert(err.message);}finally{input.value='';}
 }
 $('profileUploadToey')?.addEventListener('change',e=>readProfileImage(e.target,'Toey'));
 $('profileUploadPerla')?.addEventListener('change',e=>readProfileImage(e.target,'Perla'));
@@ -1248,7 +1343,7 @@ $('profileUploadPerla')?.addEventListener('change',e=>readProfileImage(e.target,
 $('saveProfilesBtn').onclick=()=>{
   profiles.Toey.name=$('profileNameToey').value.trim()||'Toey';
   profiles.Perla.name=$('profileNamePerla').value.trim()||'Perla';
-  localStorage.setItem('home-expense-profiles',JSON.stringify(profiles));
+  queueCloudSave();
   refreshProfilesUI();
   renderAll();
   alert('บันทึกข้อมูลผู้ใช้แล้ว');
@@ -1258,7 +1353,7 @@ $('saveDashboardBtn').onclick=()=>{
     income:$('dashIncome').checked,expense:$('dashExpense').checked,balance:$('dashBalance').checked,
     pending:$('dashPending').checked,chart:$('dashChart').checked
   };
-  localStorage.setItem('home-expense-settings',JSON.stringify(appSettings));
+  queueCloudSave();
   applyDashboardSettings();
   alert('บันทึกการแสดงผลแล้ว');
 };
@@ -1266,7 +1361,7 @@ $('saveGeneralBtn').onclick=()=>{
   appSettings.useBuddhistYear=$('useBuddhistYear').checked;
   appSettings.rememberUser=$('rememberUser').checked;
   appSettings.confirmDelete=$('confirmDelete').checked;
-  localStorage.setItem('home-expense-settings',JSON.stringify(appSettings));
+  queueCloudSave();
   if(!appSettings.rememberUser) localStorage.removeItem('home-expense-user');
   alert('บันทึกการตั้งค่าแล้ว');
 };
@@ -1275,16 +1370,14 @@ $('addCategoryBtn').onclick=()=>{
   if(!c) return;
   if(categories.includes(c)) return alert('มีหมวดหมู่นี้อยู่แล้ว');
   categories.push(c);
-  localStorage.setItem('home-expense-categories',JSON.stringify(categories));
+  queueCloudSave();
   $('newCategory').value='';
   refreshCategories();
 };
 
 
 
-function saveProjects(){
-  localStorage.setItem('home-expense-projects',JSON.stringify(projects));
-}
+function saveProjects(){ queueCloudSave(); }
 function projectById(id=currentProjectId){ return projects.find(p=>p.id===id); }
 function projectCurrency(p,amount){
   const c=p?.currency||'THB';
@@ -1461,7 +1554,8 @@ $('projectCameraImageBtn')?.addEventListener('click',()=> $('projectExpenseCamer
 
 async function addProjectExpenseImages(files){
   for(const file of [...files]){
-    const data=await compressImage(file,1200,.72);
+    let data;
+    try{data=await compressImage(file,1600,.78,460800);}catch(err){alert(`${file.name||'รูปภาพ'}: ${err.message}`);continue;}
     projectExpenseImagesData.push(data);
     const wrap=document.createElement('div');
     wrap.style.position='relative';
@@ -1624,11 +1718,7 @@ function rejectPending(id){
   const p=projectById();p.pending=p.pending.filter(e=>e.id!==id);saveProjects();renderProjectDetail();
 }
 
-function saveFeatureData(){
-  localStorage.setItem('home-expense-budgets',JSON.stringify(budgets));
-  localStorage.setItem('home-expense-recurring',JSON.stringify(recurringItems));
-  localStorage.setItem('home-expense-cards',JSON.stringify(creditCards));
-}
+function saveFeatureData(){ queueCloudSave(); }
 function renderBudgets(){
   const month=today().slice(0,7);
   $('budgetList').innerHTML=budgets.length?budgets.map((b,i)=>{
@@ -1719,7 +1809,7 @@ $('saveNotifyBtn').onclick=()=>{
   appSettings.notifyRecurring=$('notifyRecurring').checked;
   appSettings.notifyBudget=$('notifyBudget').checked;
   appSettings.notifyCard=$('notifyCard').checked;
-  localStorage.setItem('home-expense-settings',JSON.stringify(appSettings));
+  queueCloudSave();
   renderNotifications();alert('บันทึกการแจ้งเตือนแล้ว');
 };
 $('backupBtn').onclick=()=>{
@@ -1734,11 +1824,11 @@ $('restoreFile')?.addEventListener('change',async e=>{
     if(!confirm('นำเข้าข้อมูลนี้และแทนที่ข้อมูลปัจจุบันหรือไม่?'))return;
     entries=data.entries||[];appSettings=data.appSettings||{};profiles=data.profiles||profiles;categories=data.categories||categories;
     budgets=data.budgets||[];recurringItems=data.recurringItems||[];creditCards=data.creditCards||[];projects=data.projects||[];
-    localStorage.setItem('home-expense-entries',JSON.stringify(entries));
-    localStorage.setItem('home-expense-settings',JSON.stringify(appSettings));
-    localStorage.setItem('home-expense-profiles',JSON.stringify(profiles));
-    localStorage.setItem('home-expense-categories',JSON.stringify(categories));
-    saveFeatureData();saveProjects();refreshProfilesUI();refreshCategories();renderAll();alert('นำเข้าข้อมูลแล้ว');
+    queueCloudSave();
+    queueCloudSave();
+    queueCloudSave();
+    queueCloudSave();
+    saveFeatureData();saveProjects();refreshProfilesUI();refreshCategories();renderAll();queueCloudSave();alert('นำเข้าข้อมูลแล้วและกำลังบันทึกขึ้น Cloud');
   }catch(err){alert('ไฟล์ข้อมูลไม่ถูกต้อง');}
   e.target.value='';
 });
@@ -1757,7 +1847,7 @@ function browserStorageStats(){
     const key=localStorage.key(i),value=localStorage.getItem(key)||'';
     bytes+=(key.length+value.length)*2;
   }
-  $('browserStorageUsed').textContent=formatBytes(bytes);
+  $('browserStorageUsed').textContent=formatBytes(bytes)+' (Session/Cache)';
   return bytes;
 }
 async function loadStorageUsage(){
@@ -1818,11 +1908,11 @@ function deleteOldLocalAttachments(){
     const date=new Date(e.date||e.createdAt||0).getTime();
     if(date&&date<cutoff&&Array.isArray(e.images)&&e.images.length){removed+=e.images.length;e.images=[];}
   }));
-  if(!removed)return alert('ไม่พบรูปเก่าในเครื่องตามช่วงเวลาที่เลือก');
+  if(!removed)return alert('ไม่พบรูปเก่าแบบเดิมตามช่วงเวลาที่เลือก');
   if(!confirm(`พบรูปเก่า ${removed} รูป ต้องการลบเฉพาะรูปและเก็บรายการไว้หรือไม่?`))return;
-  localStorage.setItem('home-expense-entries',JSON.stringify(entries));
+  queueCloudSave();
   saveProjects();renderAll();browserStorageStats();
-  alert(`ลบรูปในเครื่องแล้ว ${removed} รูป`);
+  queueCloudSave();alert(`ลบรูปเก่าแล้ว ${removed} รูป และกำลังอัปเดต Cloud`);
 }
 $('refreshStorageBtn')?.addEventListener('click',loadStorageUsage);
 $('scanAttachmentsBtn')?.addEventListener('click',scanOldStorageFiles);
@@ -1835,7 +1925,7 @@ document.addEventListener('change',e=>{
 });
 
 function renderAll(){renderDashboard();renderHistory();renderSettle();renderProjects();renderBudgets();renderRecurring();renderCards();renderNotifications();applyDashboardSettings();}
-renderAll();
+bootstrapCloudState().catch(err=>{console.error(err);setCloudStatus('โหลด Cloud ไม่สำเร็จ','error');alert('ไม่สามารถโหลดข้อมูลจาก Cloud ได้ กรุณาตรวจสอบการติดตั้ง SQL และการเชื่อมต่อ Supabase');});
 </script>
 
 </body>

@@ -1,0 +1,31 @@
+HARMONY HAVEN - CLOUD FIRST PHASE 1
+
+1. Upload all files from this ZIP to GitHub using the same paths.
+2. In Supabase SQL Editor run:
+   supabase/migrations/003_cloud_household_state.sql
+3. Confirm Vercel already has:
+   NEXT_PUBLIC_SUPABASE_URL
+   NEXT_PUBLIC_SUPABASE_ANON_KEY
+   SUPABASE_SERVICE_ROLE_KEY
+4. Redeploy Vercel without existing Build Cache.
+5. Login from the device that currently has the latest data first.
+   - If Cloud has no state yet, that device's current data is migrated to Cloud automatically.
+   - After successful migration, shared app data is removed from localStorage.
+6. Open another device and login. It should see the same shared household data.
+
+Cloud in Phase 1:
+- Entries, settings, profiles, categories, budgets, recurring items, cards, and projects.
+- localStorage keeps only login preference/session/cache.
+
+Attachments:
+- Existing legacy Base64 images can be included temporarily in the shared state, but the API blocks state over 8 MB.
+- New/large attachments should be migrated to Supabase Storage in the next phase.
+
+IMAGE COMPRESSION UPDATE
+- Receipt and project images are resized and compressed automatically before cloud save.
+- Longest side: up to 1600 px.
+- Target size: up to about 450 KB per image when possible.
+- Profile images: up to 640 px and about 180 KB.
+- Input images larger than 25 MB are rejected.
+- Phone image orientation is preserved when the browser supports it.
+- Images are converted to JPEG for predictable storage size.
