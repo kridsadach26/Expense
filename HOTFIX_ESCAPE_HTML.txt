@@ -1,0 +1,20 @@
+Harmony Haven – escapeHtml Runtime Hotfix
+
+สาเหตุ:
+- หน้าแอปเรียกใช้ escapeHtml() แต่ฟังก์ชันไม่ได้ถูกประกาศ
+- ทำให้ JavaScript หยุดทำงาน และข้อความแจ้ง Cloud แสดงสาเหตุผิดว่าให้ตรวจสอบ SQL
+
+สิ่งที่แก้:
+- เพิ่มฟังก์ชัน escapeHtml() กลับเข้าไปใน public/app.html
+- ป้องกันค่า null/undefined
+- Escape &, <, >, double quote และ single quote
+- ตรวจสอบ JavaScript syntax ผ่านแล้ว
+
+วิธีอัปเดต:
+1. แตก ZIP นี้
+2. อัปโหลดไฟล์ทั้งหมดทับโปรเจกต์เดิม
+3. Deploy ใหม่บน Vercel
+4. แนะนำเลือก Redeploy without cache / Clear build cache
+5. เปิดแอปแล้วกด Ctrl+F5 หรือเคลียร์แคช PWA หนึ่งครั้ง
+
+ไม่ต้องรัน SQL เพิ่ม และไม่ต้องแก้ Environment Variables

@@ -905,6 +905,11 @@
 
 <script>
 const $ = id => document.getElementById(id);
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  })[char]);
+}
 let entries = JSON.parse(localStorage.getItem('home-expense-entries') || '[]');
 let imageData = [];
 let splitCounter = 0;
