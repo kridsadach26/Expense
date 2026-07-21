@@ -425,6 +425,11 @@
             <label>วิธีชำระ</label>
             <select id="payment"><option>เงินสด</option><option>โอนเงิน</option><option>บัตรเครดิต</option><option>พร้อมเพย์</option></select>
           </div>
+          <div id="entryCardWrap" class="hidden">
+            <label>เลือกบัตรเครดิต</label>
+            <select id="entryCardId"><option value="">กรุณาเลือกบัตร</option></select>
+            <div id="entryCardHint" class="muted" style="margin-top:5px"></div>
+          </div>
           <div>
             <label>สถานะ</label>
             <select id="status"><option value="paid">จ่ายแล้ว</option><option value="pending">รอชำระ</option></select>
@@ -918,6 +923,8 @@ let categories = JSON.parse(localStorage.getItem('home-expense-categories') || '
 let budgets = JSON.parse(localStorage.getItem('home-expense-budgets') || '[]');
 let recurringItems = JSON.parse(localStorage.getItem('home-expense-recurring') || '[]');
 let creditCards = JSON.parse(localStorage.getItem('home-expense-cards') || '[]');
+let openCardId='';
+let cardSelectedMonths={};
 
 let projects = JSON.parse(localStorage.getItem('home-expense-projects') || '[]');
 let calendarItems = JSON.parse(localStorage.getItem('home-expense-calendar') || '[]');
@@ -948,6 +955,7 @@ function applyCloudState(state={}){
   budgets=Array.isArray(state.budgets)?state.budgets:[];
   recurringItems=Array.isArray(state.recurringItems)?state.recurringItems:[];
   creditCards=Array.isArray(state.creditCards)?state.creditCards:[];
+  normalizeCreditCards();
   projects=Array.isArray(state.projects)?state.projects:[];
   calendarItems=Array.isArray(state.calendarItems)?state.calendarItems:[];
   appNotifications=Array.isArray(state.appNotifications)?state.appNotifications:[];
@@ -1000,6 +1008,26 @@ function currencyOptions(selected='THB'){
 function expenseBaseAmount(e){
   return Number(e.baseAmount ?? (Number(e.amount||0)*Number(e.exchangeRate||1)));
 }
+function normalizeCreditCards(){
+  creditCards=(creditCards||[]).map(c=>({...c,id:c.id||crypto.randomUUID()}));
+}
+function cardById(id){return creditCards.find(c=>c.id===id)}
+function renderEntryCardOptions(){
+  const select=$('entryCardId');if(!select)return;
+  normalizeCreditCards();
+  const current=select.value;
+  const cards=creditCards.filter(c=>!activeUser||c.owner===activeUser);
+  select.innerHTML='<option value="">กรุณาเลือกบัตร</option>'+cards.map(c=>`<option value="${c.id}">${escapeHtml(c.name)} · ${escapeHtml(profiles[c.owner]?.name||c.owner)}</option>`).join('');
+  if(cards.some(c=>c.id===current))select.value=current;
+  updateEntryCardVisibility();
+}
+function updateEntryCardVisibility(){
+  const wrap=$('entryCardWrap');if(!wrap)return;
+  const isCard=$('type').value==='expense'&&$('payment').value==='บัตรเครดิต';
+  wrap.classList.toggle('hidden',!isCard);
+  const selected=cardById($('entryCardId')?.value);
+  $('entryCardHint').textContent=isCard?(selected?`ยอดรายการนี้จะถูกรวมในบัตร ${selected.name}`:(creditCards.length?'เลือกบัตรที่ใช้ชำระ':'ยังไม่มีบัตร กรุณาเพิ่มบัตรในแท็บบัตรเครดิตก่อน')):'';
+}
 
 
 
@@ -1026,6 +1054,7 @@ function refreshProfilesUI(){
     $('activeUserName').textContent=profiles[activeUser]?.name||activeUser;
     $('payer').value=activeUser;
   }
+  renderEntryCardOptions();
 }
 function refreshCategories(){
   $('category').innerHTML=categories.map(c=>`<option>${c}</option>`).join('');
@@ -1267,6 +1296,11 @@ $('entryForm')?.addEventListener('submit',e=>{
       return;
     }
   }
+  const selectedCardId=$('type').value==='expense'&&$('payment').value==='บัตรเครดิต'?$('entryCardId').value:'';
+  if($('type').value==='expense'&&$('payment').value==='บัตรเครดิต'&&!selectedCardId){
+    alert(creditCards.length?'กรุณาเลือกบัตรเครดิต':'กรุณาเพิ่มบัตรเครดิตก่อนบันทึกรายการ');
+    return;
+  }
   entries.unshift({
     id:crypto.randomUUID(), createdAt:new Date().toISOString(), createdBy:activeUser || $('currentUser').value,
     type:$('type').value,date:$('date').value,amount,
@@ -1275,11 +1309,12 @@ $('entryForm')?.addEventListener('submit',e=>{
     baseAmount:amount*($('entryCurrency').value==='THB'?1:Number($('entryExchangeRate').value||0)),
     category:$('category').value,
     merchant:$('merchant').value.trim(),payer:$('payer').value,payment:$('payment').value,
+    cardId:selectedCardId||null,
     status:$('status').value,note:$('note').value.trim(),images:imageData,splits
   });
   save();
   e.target.reset(); $('date').value=today(); imageData=[]; $('preview').innerHTML=''; $('splitRows').innerHTML=''; $('splitSection').classList.add('hidden');
-  $('entryCurrency').value='THB'; $('entryExchangeRate').value=1; updateEntryRateHint(); updateSplitTotal();
+  $('entryCurrency').value='THB'; $('entryExchangeRate').value=1; updateEntryRateHint(); updateSplitTotal();renderEntryCardOptions();
   alert('บันทึกเรียบร้อย'); showPage('dashboard');
 });
 
@@ -1827,20 +1862,48 @@ function postRecurring(i){
   save();alert('บันทึกเป็นรายจ่ายแล้ว');
 }
 
+function cardTransactions(c,month){
+  return entries.filter(e=>e.type==='expense'&&e.payment==='บัตรเครดิต'&&e.date.startsWith(month)&&(e.cardId===c.id||(!e.cardId&&e.payer===c.owner&&creditCards.filter(x=>x.owner===c.owner).length===1))).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
+}
+function toggleCardDetails(cardId){
+  openCardId=openCardId===cardId?'':cardId;
+  if(openCardId&&!cardSelectedMonths[cardId])cardSelectedMonths[cardId]=today().slice(0,7);
+  renderCards();
+}
+function setCardMonth(cardId,value){
+  cardSelectedMonths[cardId]=value||today().slice(0,7);
+  openCardId=cardId;
+  renderCards();
+}
 function renderCards(){
+  normalizeCreditCards();
+  const currentMonth=today().slice(0,7);
   $('cardList').innerHTML=creditCards.length?creditCards.map((c,i)=>{
-    const month=today().slice(0,7);
-    const total=entries.filter(e=>e.type==='expense'&&e.payment==='บัตรเครดิต'&&e.payer===c.owner&&e.date.startsWith(month)).reduce((s,e)=>s+entryBaseAmount(e),0);
-    return `<div class="card"><div class="list-row"><div><strong>${c.name}</strong><div class="muted">${profiles[c.owner]?.name||c.owner} · ตัดรอบวันที่ ${c.cutDay} · ชำระวันที่ ${c.dueDay}</div></div><button class="btn btn-danger" onclick="removeCard(${i})">ลบ</button></div><div class="metric"><div class="label">ยอดรูดเดือนนี้</div><div class="value expense">${money(total)}</div></div></div>`;
+    const currentTx=cardTransactions(c,currentMonth);
+    const currentTotal=currentTx.reduce((s,e)=>s+entryBaseAmount(e),0);
+    const isOpen=openCardId===c.id;
+    const selectedMonth=cardSelectedMonths[c.id]||currentMonth;
+    const tx=cardTransactions(c,selectedMonth);
+    const selectedTotal=tx.reduce((s,e)=>s+entryBaseAmount(e),0);
+    const monthLabel=new Date(selectedMonth+'-01T12:00:00').toLocaleDateString('th-TH',{month:'long',year:'numeric'});
+    const rows=tx.length?tx.map(e=>`<div class="list-row"><div><strong>${escapeHtml(e.merchant||e.category||'รายการ')}</strong><div class="muted">${e.date} · ${escapeHtml(e.category||'')} · ${escapeHtml(e.payer||'')}</div></div><strong class="expense">${money(entryBaseAmount(e))}</strong></div>`).join(''):'<div class="empty" style="margin-top:10px">ยังไม่มีรายการรูดในเดือนนี้</div>';
+    const detail=isOpen?`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border,#e5e7eb)" onclick="event.stopPropagation()"><div class="form-grid"><div><label>เลือกเดือน</label><input type="month" value="${selectedMonth}" onchange="setCardMonth('${c.id}',this.value)"></div><div class="metric"><div class="label">ยอดรวม ${monthLabel}</div><div class="value expense">${money(selectedTotal)}</div><div class="muted">${tx.length} รายการ</div></div></div><div style="margin-top:10px">${rows}</div></div>`:'';
+    return `<div class="card" style="cursor:pointer" onclick="toggleCardDetails('${c.id}')"><div class="list-row"><div><strong>${escapeHtml(c.name)}</strong><div class="muted">${escapeHtml(profiles[c.owner]?.name||c.owner)} · ตัดรอบวันที่ ${c.cutDay} · ชำระวันที่ ${c.dueDay}</div></div><div class="actions"><span class="muted">${isOpen?'ซ่อนรายการ':'คลิกเพื่อดูรายการ'}</span><button class="btn btn-danger" onclick="event.stopPropagation();removeCard(${i})">ลบ</button></div></div><div class="metric"><div class="label">ยอดรูดเดือนนี้</div><div class="value expense">${money(currentTotal)}</div><div class="muted">${currentTx.length} รายการ</div></div>${detail}</div>`;
   }).join(''):'<div class="card empty">ยังไม่มีข้อมูลบัตรเครดิต</div>';
+  renderEntryCardOptions();
 }
 $('addCardBtn').onclick=()=>{
   const name=$('cardName').value.trim();
   if(!name)return alert('กรุณาระบุชื่อบัตร');
-  creditCards.push({name,owner:$('cardOwner').value,cutDay:Number($('cardCutDay').value),dueDay:Number($('cardDueDay').value)});
+  creditCards.push({id:crypto.randomUUID(),name,owner:$('cardOwner').value,cutDay:Number($('cardCutDay').value),dueDay:Number($('cardDueDay').value)});
   saveFeatureData();$('cardName').value='';renderCards();renderNotifications();
 };
-function removeCard(i){creditCards.splice(i,1);saveFeatureData();renderCards();renderNotifications();}
+function removeCard(i){
+  const c=creditCards[i];
+  const used=entries.some(e=>e.cardId===c?.id);
+  if(used&&!confirm('บัตรนี้มีรายการค่าใช้จ่ายอยู่ หากลบ รายการเดิมจะยังอยู่แต่จะไม่ผูกกับบัตร ต้องการลบหรือไม่?'))return;
+  creditCards.splice(i,1);saveFeatureData();renderCards();renderNotifications();
+}
 
 function renderNotifications(){
   const notices=[];
@@ -2032,6 +2095,10 @@ function openNotificationCenter(){renderNotificationCenter();notificationCenterD
 function renderNotificationCenter(){$('notificationCenterList').innerHTML=appNotifications.length?appNotifications.map(n=>`<div class="list-row"><div><strong>${escapeHtml(n.title)}</strong><div class="muted">${n.date||''} · ${new Date(n.createdAt).toLocaleString('th-TH')}</div></div>${n.read?'<span class="badge">อ่านแล้ว</span>':`<button class="btn btn-light" onclick="markNotificationRead('${n.id}')">อ่านแล้ว</button>`}</div>`).join(''):'<div class="empty">ไม่มีการแจ้งเตือน</div>'}
 function markNotificationRead(id){const n=appNotifications.find(x=>x.id===id);if(n)n.read=true;queueCloudSave();renderNotificationCenter();updateNotificationBadge()}
 function markAllNotificationsRead(){appNotifications.forEach(n=>n.read=true);queueCloudSave();renderNotificationCenter();updateNotificationBadge()}
+$('payment')?.addEventListener('change',updateEntryCardVisibility);
+$('type')?.addEventListener('change',updateEntryCardVisibility);
+$('entryCardId')?.addEventListener('change',updateEntryCardVisibility);
+$('payer')?.addEventListener('change',()=>{const owner=$('payer').value;const matching=creditCards.filter(c=>c.owner===owner);$('entryCardId').innerHTML='<option value="">กรุณาเลือกบัตร</option>'+matching.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');updateEntryCardVisibility()});
 document.querySelectorAll('[data-cal-filter]').forEach(b=>b.onclick=()=>{calendarFilter=b.dataset.calFilter;document.querySelectorAll('[data-cal-filter]').forEach(x=>x.classList.toggle('active',x===b));renderCalendar()});
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(console.error);
 setInterval(checkDueCalendarReminders,60*60*1000);
