@@ -1,0 +1,32 @@
+HARMONY HAVEN - STORAGE MANAGEMENT SETUP
+
+1) Upload all files in this patch to GitHub using the same paths.
+
+2) In Supabase SQL Editor, run:
+   supabase/migrations/002_storage_management.sql
+
+3) In Vercel > Project > Settings > Environment Variables, add:
+
+   SUPABASE_SERVICE_ROLE_KEY
+   - Get this from Supabase Project Settings > API Keys.
+   - Server only. Never prefix it with NEXT_PUBLIC_.
+
+   SUPABASE_STORAGE_QUOTA_BYTES
+   - Set the storage allowance you want the app to use for the remaining-space calculation.
+   - Examples:
+     1 GB  = 1073741824
+     5 GB  = 5368709120
+     10 GB = 10737418240
+
+4) Redeploy Vercel without the existing build cache.
+
+5) Open Settings > Storage and attachments.
+   - Refresh: gets current object size/count from Supabase Storage.
+   - Find old files: filters receipt files by age.
+   - Delete selected: permanently deletes selected objects and attachment references.
+   - Delete old local attachments: removes old base64 images from this browser only while preserving transaction/project records.
+
+IMPORTANT
+- Current prototype transactions still store most receipt images in browser localStorage.
+- Supabase usage starts showing receipt files after uploads are stored in the receipts bucket.
+- Remaining space is calculated from SUPABASE_STORAGE_QUOTA_BYTES because the app cannot safely infer the project's billing-plan quota from the public client API.

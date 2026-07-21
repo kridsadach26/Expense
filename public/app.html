@@ -244,6 +244,24 @@
   .bill-grid{grid-template-columns:1fr}
 }
 
+
+    .full-storage-card{grid-column:1/-1}
+    .storage-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .storage-metric{background:#f7f8fa;border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:5px}
+    .storage-metric span{font-size:12px;color:var(--muted)}
+    .storage-metric strong{font-size:20px}
+    .storage-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .storage-actions>*{flex:1;min-width:170px}
+    .storage-file-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+    .storage-file-row:last-child{border-bottom:0}
+    @media(max-width:800px){
+      .storage-metrics{grid-template-columns:1fr 1fr}
+      .storage-actions{display:grid;grid-template-columns:1fr}
+      .storage-actions>*{min-width:0;width:100%}
+      .storage-file-row{grid-template-columns:auto 1fr}
+      .storage-file-row .storage-size{grid-column:2}
+    }
+
 </style>
 </head>
 <body>
@@ -653,6 +671,39 @@
           </div>
         </div>
 
+        <div class="setting-card full-storage-card">
+          <h3 style="margin-top:0">พื้นที่จัดเก็บและไฟล์แนบ</h3>
+          <p class="muted">แสดงข้อมูลจาก Supabase Storage แบบเรียลไทม์ และพื้นที่ในเบราว์เซอร์เครื่องนี้</p>
+
+          <div class="storage-metrics">
+            <div class="storage-metric"><span>Supabase ใช้แล้ว</span><strong id="storageUsed">-</strong></div>
+            <div class="storage-metric"><span>คงเหลือ</span><strong id="storageRemaining">-</strong></div>
+            <div class="storage-metric"><span>จำนวนไฟล์</span><strong id="storageFileCount">-</strong></div>
+            <div class="storage-metric"><span>ข้อมูลในเครื่อง</span><strong id="browserStorageUsed">-</strong></div>
+          </div>
+          <div class="progress" id="storageProgress"><div style="width:0%"></div></div>
+          <div id="storageUsageNote" class="muted" style="margin-top:7px">กดรีเฟรชเพื่อโหลดข้อมูลล่าสุด</div>
+
+          <div class="storage-actions" style="margin-top:14px">
+            <button id="refreshStorageBtn" class="btn btn-light" type="button">รีเฟรชพื้นที่</button>
+            <select id="attachmentAge">
+              <option value="180">เก่ากว่า 6 เดือน</option>
+              <option value="365" selected>เก่ากว่า 1 ปี</option>
+              <option value="730">เก่ากว่า 2 ปี</option>
+              <option value="1825">เก่ากว่า 5 ปี</option>
+            </select>
+            <button id="scanAttachmentsBtn" class="btn btn-light" type="button">ค้นหาไฟล์เก่า</button>
+          </div>
+
+          <div id="storageFileList" style="margin-top:12px"></div>
+
+          <div class="storage-actions" style="margin-top:12px">
+            <button id="deleteSelectedStorageBtn" class="btn btn-danger" type="button" disabled>ลบไฟล์ที่เลือกจาก Supabase</button>
+            <button id="deleteLocalOldAttachmentsBtn" class="btn btn-danger" type="button">ลบรูปเก่าในเครื่อง</button>
+          </div>
+          <div class="muted" style="margin-top:10px">การลบจะลบเฉพาะรูปหรือไฟล์แนบ รายการรายรับรายจ่ายและยอดคำนวณจะยังอยู่</div>
+        </div>
+
         <div class="setting-card">
           <h3 style="margin-top:0">ข้อมูลทดสอบ</h3>
           <p class="muted">ข้อมูลยังเก็บเฉพาะในเบราว์เซอร์เครื่องนี้</p>
@@ -942,7 +993,7 @@ function showPage(id){
   if(id==='budget') renderBudgets();
   if(id==='recurring') renderRecurring();
   if(id==='cards') renderCards();
-  if(id==='settings'){ refreshProfilesUI(); refreshCategories(); }
+  if(id==='settings'){ refreshProfilesUI(); refreshCategories(); loadStorageUsage(); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -1690,6 +1741,97 @@ $('restoreFile')?.addEventListener('change',async e=>{
     saveFeatureData();saveProjects();refreshProfilesUI();refreshCategories();renderAll();alert('นำเข้าข้อมูลแล้ว');
   }catch(err){alert('ไฟล์ข้อมูลไม่ถูกต้อง');}
   e.target.value='';
+});
+
+
+function formatBytes(bytes){
+  const n=Number(bytes||0);
+  if(n<1024)return n.toLocaleString('th-TH')+' B';
+  if(n<1048576)return (n/1024).toLocaleString('th-TH',{maximumFractionDigits:1})+' KB';
+  if(n<1073741824)return (n/1048576).toLocaleString('th-TH',{maximumFractionDigits:1})+' MB';
+  return (n/1073741824).toLocaleString('th-TH',{maximumFractionDigits:2})+' GB';
+}
+function browserStorageStats(){
+  let bytes=0;
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i),value=localStorage.getItem(key)||'';
+    bytes+=(key.length+value.length)*2;
+  }
+  $('browserStorageUsed').textContent=formatBytes(bytes);
+  return bytes;
+}
+async function loadStorageUsage(){
+  $('storageUsageNote').textContent='กำลังโหลดข้อมูลจาก Supabase...';
+  try{
+    const res=await fetch('/api/storage/summary',{cache:'no-store'});
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.error||'โหลดข้อมูลไม่สำเร็จ');
+    $('storageUsed').textContent=formatBytes(data.usedBytes);
+    $('storageRemaining').textContent=formatBytes(data.remainingBytes);
+    $('storageFileCount').textContent=Number(data.fileCount||0).toLocaleString('th-TH');
+    $('storageProgress').querySelector('div').style.width=Math.min(Number(data.percentUsed||0),100)+'%';
+    $('storageUsageNote').textContent=`ใช้ไป ${Number(data.percentUsed||0).toLocaleString('th-TH',{maximumFractionDigits:1})}% · อัปเดต ${new Date(data.calculatedAt).toLocaleString('th-TH')}`;
+  }catch(err){
+    $('storageUsageNote').textContent='โหลด Supabase Storage ไม่สำเร็จ: '+err.message;
+    $('storageUsed').textContent='-';$('storageRemaining').textContent='-';$('storageFileCount').textContent='-';
+  }
+  browserStorageStats();
+}
+async function scanOldStorageFiles(){
+  const days=Number($('attachmentAge').value||365);
+  $('storageFileList').innerHTML='<div class="empty">กำลังค้นหาไฟล์...</div>';
+  try{
+    const res=await fetch(`/api/storage/files?bucket=receipts&olderThanDays=${days}&limit=500`,{cache:'no-store'});
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.error||'ค้นหาไฟล์ไม่สำเร็จ');
+    const files=data.files||[];
+    $('deleteSelectedStorageBtn').disabled=!files.length;
+    $('storageFileList').innerHTML=files.length?`<div class="muted" style="margin-bottom:8px">พบ ${files.length.toLocaleString('th-TH')} ไฟล์ รวม ${formatBytes(data.totalBytes)}</div>${files.map(f=>`<label class="storage-file-row"><input class="storage-file-check" type="checkbox" value="${encodeURIComponent(f.path)}"><div><strong>${f.path.split('/').pop()}</strong><div class="muted">${new Date(f.createdAt).toLocaleDateString('th-TH')}</div></div><span class="storage-size muted">${formatBytes(f.size)}</span></label>`).join('')}`:'<div class="empty">ไม่พบไฟล์ตามช่วงอายุที่เลือก</div>';
+  }catch(err){
+    $('storageFileList').innerHTML=`<div class="notice danger">${err.message}</div>`;
+    $('deleteSelectedStorageBtn').disabled=true;
+  }
+}
+async function deleteSelectedStorageFiles(){
+  const paths=[...document.querySelectorAll('.storage-file-check:checked')].map(x=>decodeURIComponent(x.value));
+  if(!paths.length)return alert('กรุณาเลือกไฟล์ที่ต้องการลบ');
+  if(!confirm(`ลบไฟล์ ${paths.length} รายการจาก Supabase ถาวรหรือไม่?`))return;
+  const btn=$('deleteSelectedStorageBtn');btn.disabled=true;btn.textContent='กำลังลบ...';
+  try{
+    const res=await fetch('/api/storage/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bucket:'receipts',paths})});
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.error||'ลบไฟล์ไม่สำเร็จ');
+    alert(`ลบไฟล์แล้ว ${data.deleted} รายการ`);
+    await scanOldStorageFiles();await loadStorageUsage();
+  }catch(err){alert(err.message)}
+  finally{btn.textContent='ลบไฟล์ที่เลือกจาก Supabase';btn.disabled=false;}
+}
+function deleteOldLocalAttachments(){
+  const days=Number($('attachmentAge').value||365);
+  const cutoff=Date.now()-days*86400000;
+  let removed=0;
+  entries.forEach(e=>{
+    const date=new Date(e.date||e.createdAt||0).getTime();
+    if(date&&date<cutoff&&Array.isArray(e.images)&&e.images.length){removed+=e.images.length;e.images=[];}
+  });
+  projects.forEach(p=>(p.expenses||[]).forEach(e=>{
+    const date=new Date(e.date||e.createdAt||0).getTime();
+    if(date&&date<cutoff&&Array.isArray(e.images)&&e.images.length){removed+=e.images.length;e.images=[];}
+  }));
+  if(!removed)return alert('ไม่พบรูปเก่าในเครื่องตามช่วงเวลาที่เลือก');
+  if(!confirm(`พบรูปเก่า ${removed} รูป ต้องการลบเฉพาะรูปและเก็บรายการไว้หรือไม่?`))return;
+  localStorage.setItem('home-expense-entries',JSON.stringify(entries));
+  saveProjects();renderAll();browserStorageStats();
+  alert(`ลบรูปในเครื่องแล้ว ${removed} รูป`);
+}
+$('refreshStorageBtn')?.addEventListener('click',loadStorageUsage);
+$('scanAttachmentsBtn')?.addEventListener('click',scanOldStorageFiles);
+$('deleteSelectedStorageBtn')?.addEventListener('click',deleteSelectedStorageFiles);
+$('deleteLocalOldAttachmentsBtn')?.addEventListener('click',deleteOldLocalAttachments);
+document.addEventListener('change',e=>{
+  if(e.target.classList?.contains('storage-file-check')){
+    $('deleteSelectedStorageBtn').disabled=!document.querySelector('.storage-file-check:checked');
+  }
 });
 
 function renderAll(){renderDashboard();renderHistory();renderSettle();renderProjects();renderBudgets();renderRecurring();renderCards();renderNotifications();applyDashboardSettings();}
