@@ -19,6 +19,13 @@
     .brand{font-size:22px;font-weight:800}
     .sub{font-size:12px;opacity:.9}
     .user-switch{display:flex;gap:8px;align-items:center}
+    .active-user-photo{width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.7);background:#fff}
+    .dashboard-profile{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+    .dashboard-profile img{width:68px;height:68px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 7px 22px rgba(20,25,35,.12)}
+    .dashboard-profile .welcome{font-size:20px;font-weight:800}
+    .history-range{display:flex;gap:8px;align-items:end;flex-wrap:wrap;width:100%}
+    .history-range>div{flex:1;min-width:150px}
+    .history-filter-summary{margin:8px 0 12px}
     .user-switch select{border:0;border-radius:10px;padding:9px 12px}
     nav{display:flex;gap:8px;overflow:auto;background:#fff;padding:12px 14px;border-bottom:1px solid var(--line);position:sticky;top:86px;z-index:19;border-radius:0 0 18px 18px}
     nav button{white-space:nowrap;border:0;background:#f2f3f6;padding:10px 14px;border-radius:10px;cursor:pointer}
@@ -332,6 +339,7 @@
         <div class="sub">Shared home expense tracker</div>
       </div>
       <div class="user-switch">
+        <img id="activeUserPhoto" class="active-user-photo" alt="ผู้ใช้งาน">
         <div>
           <div class="small">ผู้ใช้งาน</div>
           <strong id="activeUserName">-</strong>
@@ -377,6 +385,10 @@
       </div>
 
       <div id="notificationArea"></div>
+      <div class="card dashboard-profile">
+        <img id="dashboardUserPhoto" alt="รูปผู้ใช้งาน">
+        <div><div class="muted">ยินดีต้อนรับ</div><div id="dashboardUserName" class="welcome">-</div><div class="muted">ภาพที่เปลี่ยนในหน้าตั้งค่าจะแสดงตรงนี้อัตโนมัติ</div></div>
+      </div>
       <div class="grid summary">
         <div id="metricIncome" class="card metric"><div class="label">รายรับ</div><div id="sumIncome" class="value income">฿0</div></div>
         <div id="metricExpense" class="card metric"><div class="label">รายจ่าย</div><div id="sumExpense" class="value expense">฿0</div></div>
@@ -506,9 +518,24 @@
         <div class="toolbar">
           <input id="search" placeholder="ค้นหาร้านค้า หมวดหมู่ หรือหมายเหตุ" />
           <select id="filterType"><option value="">ทุกประเภท</option><option value="expense">รายจ่าย</option><option value="income">รายรับ</option></select>
-          <input id="filterMonth" type="month" />
+          <select id="historyPeriodPreset">
+            <option value="all">ทุกช่วงเวลา</option>
+            <option value="today">วันนี้</option>
+            <option value="7days">7 วันล่าสุด</option>
+            <option value="30days">30 วันล่าสุด</option>
+            <option value="currentMonth">เดือนปัจจุบัน</option>
+            <option value="previousMonth">เดือนก่อน</option>
+            <option value="currentYear">ปีปัจจุบัน</option>
+            <option value="custom">กำหนดช่วงเอง</option>
+          </select>
           <button class="btn btn-dark" id="exportBtn">ส่งออก CSV</button>
         </div>
+        <div class="history-range">
+          <div><label>ตั้งแต่วันที่</label><input id="historyStartDate" type="date"></div>
+          <div><label>ถึงวันที่</label><input id="historyEndDate" type="date"></div>
+          <button type="button" class="btn btn-light" id="clearHistoryRangeBtn">ล้างช่วงเวลา</button>
+        </div>
+        <div id="historyFilterSummary" class="muted history-filter-summary"></div>
         <div id="historyTable"></div>
       </div>
     </section>
@@ -1126,9 +1153,13 @@ function refreshProfilesUI(){
   $('payer').innerHTML=`<option value="Toey">${t.name}</option><option value="Perla">${p.name}</option>`;
   ['recurringPayer','cardOwner'].forEach(id=>{ if($(id)) $(id).innerHTML=`<option value="Toey">${t.name}</option><option value="Perla">${p.name}</option>`; });
   if(activeUser){
+    const activeProfile=profiles[activeUser]||{name:activeUser,photo:''};
     $('currentUser').value=activeUser;
-    $('activeUserName').textContent=profiles[activeUser]?.name||activeUser;
+    $('activeUserName').textContent=activeProfile.name||activeUser;
     $('payer').value=activeUser;
+    if($('activeUserPhoto')) $('activeUserPhoto').src=activeProfile.photo||defaultAvatar(activeProfile.name||activeUser);
+    if($('dashboardUserPhoto')) $('dashboardUserPhoto').src=activeProfile.photo||defaultAvatar(activeProfile.name||activeUser);
+    if($('dashboardUserName')) $('dashboardUserName').textContent=activeProfile.name||activeUser;
   }
   renderEntryCardOptions();
 }
@@ -1437,6 +1468,10 @@ function periodEntries(){
   return entries.filter(e=>e.date>=p.start && e.date<=p.end);
 }
 function renderDashboard(){
+  const activeProfile=profiles[activeUser]||{name:activeUser||'-',photo:''};
+  if($('dashboardUserPhoto')) $('dashboardUserPhoto').src=activeProfile.photo||defaultAvatar(activeProfile.name||activeUser||'?');
+  if($('dashboardUserName')) $('dashboardUserName').textContent=activeProfile.name||activeUser||'-';
+  if($('activeUserPhoto')) $('activeUserPhoto').src=activeProfile.photo||defaultAvatar(activeProfile.name||activeUser||'?');
   const data=periodEntries();
   renderReimbursements();
   const period=summaryPeriod();
@@ -1462,13 +1497,34 @@ function renderDashboard(){
     </div>`).join(''):'<div class="empty">ยังไม่มีรายการ</div>';
 }
 
+function historyRangeLabel(start,end){
+  if(!start&&!end)return 'กำลังแสดงทุกช่วงเวลา';
+  const fmt=v=>v?new Date(v+'T12:00:00').toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'}):'ไม่จำกัด';
+  return `ช่วง ${fmt(start)} ถึง ${fmt(end)}`;
+}
+function setHistoryPeriodPreset(value){
+  const now=new Date(), start=$('historyStartDate'), end=$('historyEndDate');
+  const set=(a,b)=>{start.value=a||'';end.value=b||'';};
+  if(value==='custom'){renderHistory();return;}
+  if(value==='all')set('','');
+  else if(value==='today'){const d=ymd(now);set(d,d);}
+  else if(value==='7days'){const d=new Date(now);d.setDate(d.getDate()-6);set(ymd(d),ymd(now));}
+  else if(value==='30days'){const d=new Date(now);d.setDate(d.getDate()-29);set(ymd(d),ymd(now));}
+  else if(value==='currentMonth')set(ymd(new Date(now.getFullYear(),now.getMonth(),1)),ymd(new Date(now.getFullYear(),now.getMonth()+1,0)));
+  else if(value==='previousMonth')set(ymd(new Date(now.getFullYear(),now.getMonth()-1,1)),ymd(new Date(now.getFullYear(),now.getMonth(),0)));
+  else if(value==='currentYear')set(`${now.getFullYear()}-01-01`,`${now.getFullYear()}-12-31`);
+  renderHistory();
+}
 function filteredEntries(){
-  const q=$('search').value.toLowerCase(), type=$('filterType').value, month=$('filterMonth').value;
-  return entries.filter(e=>(!q||[e.merchant,e.category,e.note,e.payer].join(' ').toLowerCase().includes(q))&&(!type||e.type===type)&&(!month||e.date.startsWith(month)));
+  const q=$('search').value.toLowerCase(), type=$('filterType').value;
+  const start=$('historyStartDate')?.value||'', end=$('historyEndDate')?.value||'';
+  return entries.filter(e=>(!q||[e.merchant,e.category,e.note,e.payer].join(' ').toLowerCase().includes(q))&&(!type||e.type===type)&&(!start||e.date>=start)&&(!end||e.date<=end));
 }
 function renderHistory(){
   const allData=filteredEntries();
   const data=allData.slice(0,200);
+  const start=$('historyStartDate')?.value||'', end=$('historyEndDate')?.value||'';
+  if($('historyFilterSummary')) $('historyFilterSummary').textContent=`${historyRangeLabel(start,end)} · พบ ${allData.length} รายการ${allData.length>200?' · แสดง 200 รายการแรก':''}`;
   $('historyTable').innerHTML=data.length?`<table><thead><tr><th>วันที่</th><th>รายการ</th><th>ผู้จ่าย</th><th>ประเภท</th><th>ยอด</th><th>บิล</th><th></th></tr></thead><tbody>${
     data.map(e=>`<tr>
       <td>${e.date}</td><td><strong>${e.merchant}</strong><div class="muted">${e.category}</div></td>
@@ -1477,9 +1533,11 @@ function renderHistory(){
       <td>${e.images?.length||0} รูป</td>
       <td><div class="actions"><button class="btn btn-light" onclick="openDetail('${e.id}')">ดู</button><button class="btn btn-danger" onclick="removeEntry('${e.id}')">ลบ</button></div></td>
     </tr>`).join('')
-  }</tbody></table>`:'<div class="empty">ไม่พบรายการ</div>';
+  }</tbody></table>`:'<div class="empty">ไม่พบรายการในช่วงเวลาที่เลือก</div>';
 }
-['search','filterType','filterMonth'].forEach(id=>$(id).addEventListener('input',renderHistory));
+['search','filterType','historyStartDate','historyEndDate'].forEach(id=>$(id)?.addEventListener('input',()=>{if((id==='historyStartDate'||id==='historyEndDate')&&$('historyPeriodPreset'))$('historyPeriodPreset').value='custom';renderHistory()}));
+$('historyPeriodPreset')?.addEventListener('change',e=>setHistoryPeriodPreset(e.target.value));
+$('clearHistoryRangeBtn')?.addEventListener('click',()=>{$('historyPeriodPreset').value='all';setHistoryPeriodPreset('all')});
 
 function renderReimbursements(){
   const el=$('reimbursementList');if(!el)return;
