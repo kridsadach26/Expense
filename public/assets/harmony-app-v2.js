@@ -757,9 +757,14 @@ function openProjectExpense(){
   updateExchangeHint();
   const active=p.members.filter(m=>m.active);
   $('projectExpensePayer').innerHTML=active.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
-  $('projectParticipantChecks').innerHTML=active.map(m=>`<label style="display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0"><input type="checkbox" class="project-participant" value="${m.id}" checked>${m.name}</label>`).join('');
+  $('projectParticipantChecks').innerHTML=active.map(m=>{
+    const initial=escapeHtml((m.name||'?').trim().charAt(0).toUpperCase());
+    return `<label class="project-participant-card"><input type="checkbox" class="project-participant" value="${m.id}" checked><span class="project-participant-avatar">${initial}</span><span class="project-participant-name">${escapeHtml(m.name)}</span></label>`;
+  }).join('');
   $('projectSplitMode').value='equal';$('customSplitWrap').classList.add('hidden');$('customSplitRows').innerHTML='';
   projectExpenseImagesData=[];$('projectExpensePreview').innerHTML='';
+  updateProjectExpensePreviewMeta();
+  updateProjectSplitSummary();
   $('projectExpenseImages').value='';$('projectExpenseCamera').value='';
   $('projectExpenseDialog').showModal();
 }
@@ -775,8 +780,9 @@ $('projectExpenseCurrency')?.addEventListener('change',()=>{
   const p=projectById();
   $('projectExchangeRate').value=$('projectExpenseCurrency').value===p.currency?1:'';
   updateExchangeHint();
+  updateProjectSplitSummary();
 });
-$('projectExpenseAmount')?.addEventListener('input',updateExchangeHint);
+$('projectExpenseAmount')?.addEventListener('input',()=>{updateExchangeHint();updateProjectSplitSummary();});
 $('projectExchangeRate')?.addEventListener('input',updateExchangeHint);
 $('fetchRateBtn')?.addEventListener('click',async()=>{
   const p=projectById(),from=$('projectExpenseCurrency').value,to=p.currency;
@@ -801,15 +807,46 @@ $('projectSplitMode')?.addEventListener('change',()=>{
   const custom=$('projectSplitMode').value==='custom';
   $('customSplitWrap').classList.toggle('hidden',!custom);
   if(custom)renderCustomSplitRows();
+  updateProjectSplitSummary();
 });
-$('projectParticipantChecks')?.addEventListener('change',()=>{if($('projectSplitMode').value==='custom')renderCustomSplitRows();});
+$('projectParticipantChecks')?.addEventListener('change',()=>{if($('projectSplitMode').value==='custom')renderCustomSplitRows();updateProjectSplitSummary();});
 function renderCustomSplitRows(){
   const p=projectById();
   const ids=[...document.querySelectorAll('.project-participant:checked')].map(x=>x.value);
   $('customSplitRows').innerHTML=ids.map(id=>{
     const m=p.members.find(x=>x.id===id);
-    return `<div class="expense-split-row"><div>${m.name}</div><input class="project-custom-share" data-member="${id}" type="number" min="0" step="0.01" placeholder="0"><div></div></div>`;
+    return `<div class="expense-split-row"><div>${escapeHtml(m.name)}</div><input class="project-custom-share" data-member="${id}" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0"><div></div></div>`;
   }).join('');
+  $('customSplitRows').querySelectorAll('.project-custom-share').forEach(input=>input.addEventListener('input',updateProjectSplitSummary));
+  updateProjectSplitSummary();
+}
+function updateProjectSplitSummary(){
+  const p=projectById(); if(!p)return;
+  const amount=Number($('projectExpenseAmount')?.value||0);
+  const ids=[...document.querySelectorAll('.project-participant:checked')].map(x=>x.value);
+  let each=ids.length?amount/ids.length:0;
+  if($('projectSplitMode')?.value==='custom'){
+    const values=[...document.querySelectorAll('.project-custom-share')].map(x=>Number(x.value||0));
+    each=values.length?values.reduce((a,b)=>a+b,0)/values.length:0;
+  }
+  $('projectSplitTotal').textContent=projectCurrency({currency:$('projectExpenseCurrency')?.value||p.currency},amount);
+  $('projectSplitCount').textContent=`${ids.length} คน`;
+  $('projectSplitEach').textContent=projectCurrency({currency:$('projectExpenseCurrency')?.value||p.currency},each);
+}
+function projectImageBytes(dataUrl){
+  const base64=String(dataUrl||'').split(',')[1]||'';
+  return Math.max(0,Math.floor(base64.length*0.75));
+}
+function formatProjectImageSize(bytes){
+  if(bytes<1024)return `${bytes} B`;
+  if(bytes<1024*1024)return `${(bytes/1024).toFixed(1)} KB`;
+  return `${(bytes/1024/1024).toFixed(1)} MB`;
+}
+function updateProjectExpensePreviewMeta(){
+  const el=$('projectExpensePreviewMeta'); if(!el)return;
+  if(!projectExpenseImagesData.length){el.textContent='ยังไม่ได้แนบรูป';return;}
+  const total=projectExpenseImagesData.reduce((sum,data)=>sum+projectImageBytes(data),0);
+  el.textContent=`แนบแล้ว ${projectExpenseImagesData.length} รูป · ขนาดประมาณ ${formatProjectImageSize(total)} · ระบบบีบอัดอัตโนมัติแล้ว`;
 }
 $('projectUploadImageBtn')?.addEventListener('click',()=> $('projectExpenseImages').click());
 $('projectCameraImageBtn')?.addEventListener('click',()=> $('projectExpenseCamera').click());
@@ -819,6 +856,7 @@ async function addProjectExpenseImages(files){
     let data;
     try{data=await compressImage(file,1600,.78,460800);}catch(err){alert(`${file.name||'รูปภาพ'}: ${err.message}`);continue;}
     projectExpenseImagesData.push(data);
+    updateProjectExpensePreviewMeta();
     const wrap=document.createElement('div');
     wrap.style.position='relative';
     wrap.innerHTML=`<img src="${data}" class="preview"><button type="button" class="btn btn-danger" style="position:absolute;right:4px;top:4px;padding:4px 7px;border-radius:8px">×</button>`;
@@ -826,6 +864,7 @@ async function addProjectExpenseImages(files){
       const index=[...$('projectExpensePreview').children].indexOf(wrap);
       if(index>=0) projectExpenseImagesData.splice(index,1);
       wrap.remove();
+      updateProjectExpensePreviewMeta();
     };
     $('projectExpensePreview').appendChild(wrap);
   }

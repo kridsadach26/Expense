@@ -298,6 +298,38 @@
 .cloud-sync-status.syncing{color:#a65d00}.cloud-sync-status.ok{color:#237a43}.cloud-sync-status.error{color:#b73737;background:#fff0f0}
 @media(max-width:800px){.cloud-sync-status{font-size:10px;padding:3px 6px}}
 
+
+    /* Project expense modal UX only */
+    #projectExpenseDialog{max-width:760px;width:min(96%,760px);max-height:94vh;overflow:hidden}
+    #projectExpenseDialog .dialog-head{align-items:center;position:sticky;top:0;background:#fff;z-index:3}
+    #projectExpenseDialog .dialog-body{max-height:calc(94vh - 66px);overflow:auto;padding:16px}
+    .project-expense-close{width:38px;height:38px;padding:0;border-radius:50%;font-size:22px;line-height:1}
+    .project-expense-section{border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff;margin-bottom:12px}
+    .project-expense-section-title{font-weight:800;margin:0 0 12px;font-size:14px}
+    .project-expense-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .project-participant-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .project-participant-card{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff;color:var(--text);margin:0;cursor:pointer;min-width:0}
+    .project-participant-card:has(input:checked){border-color:var(--orange);background:#fff7ed}
+    .project-participant-card input{width:22px;height:22px;flex:none;accent-color:var(--orange)}
+    .project-participant-avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#f1f2f5;font-weight:800;flex:none}
+    .project-participant-name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .project-expense-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+    .project-expense-summary>div{background:#fafafa;border:1px solid var(--line);border-radius:11px;padding:10px;text-align:center}
+    .project-expense-summary strong{display:block;font-size:17px;margin-top:3px}
+    .project-expense-upload-row{display:flex;gap:8px;flex-wrap:wrap}
+    .project-expense-upload-row .btn{flex:1;min-width:150px}
+    .project-expense-preview-meta{margin-top:8px}
+    #projectExpenseDialog textarea{min-height:64px}
+    .project-expense-footer{position:sticky;bottom:-16px;background:linear-gradient(to top,#fff 75%,rgba(255,255,255,0));padding:18px 0 0;margin-top:2px}
+    .project-expense-footer .btn{width:100%;padding:14px;font-size:16px}
+    @media(max-width:560px){
+      #projectExpenseDialog{width:100%;max-width:none;max-height:100dvh;border-radius:18px 18px 0 0;margin:auto 0 0}
+      #projectExpenseDialog .dialog-body{max-height:calc(100dvh - 66px);padding:12px}
+      .project-expense-grid{grid-template-columns:1fr}
+      .project-participant-grid{grid-template-columns:1fr 1fr}
+      .project-expense-summary{grid-template-columns:1fr 1fr 1fr}
+    }
+
 </style>
 </head>
 <body class="app-loading">
@@ -840,42 +872,65 @@
 </dialog>
 
 <dialog id="projectExpenseDialog">
-  <div class="dialog-head"><strong>เพิ่มค่าใช้จ่ายในโปรเจกต์</strong><button class="btn btn-light" onclick="projectExpenseDialog.close()">ปิด</button></div>
+  <div class="dialog-head">
+    <strong>เพิ่มค่าใช้จ่ายในโปรเจกต์</strong>
+    <button type="button" class="btn btn-light project-expense-close" aria-label="ปิด" onclick="projectExpenseDialog.close()">×</button>
+  </div>
   <div class="dialog-body">
-    <div class="grid" style="grid-template-columns:1fr 1fr">
-      <div><label>วันที่</label><input id="projectExpenseDate" type="date"></div>
-      <div><label>จำนวนเงิน</label><input id="projectExpenseAmount" type="number" min="0" step="0.01"></div>
-      <div><label>สกุลเงินที่จ่าย</label><select id="projectExpenseCurrency"></select></div>
-      <div>
-        <label>เรทเป็นสกุลหลักของโปรเจกต์</label>
-        <div style="display:flex;gap:8px">
-          <input id="projectExchangeRate" type="number" min="0" step="0.000001" value="1">
-          <button type="button" class="btn btn-light" id="fetchRateBtn">ดึงเรท</button>
+    <section class="project-expense-section">
+      <div class="project-expense-section-title">ข้อมูลรายการ</div>
+      <div class="project-expense-grid">
+        <div><label>วันที่</label><input id="projectExpenseDate" type="date"></div>
+        <div><label>จำนวนเงิน</label><input id="projectExpenseAmount" type="number" min="0" step="0.01" inputmode="decimal"></div>
+        <div class="full"><label>รายการ</label><input id="projectExpenseName" placeholder="เช่น โรงแรม ค่าอาหาร ค่าน้ำมัน"></div>
+        <div><label>สกุลเงินที่จ่าย</label><select id="projectExpenseCurrency"></select></div>
+        <div>
+          <label>เรทเป็นสกุลหลักของโปรเจกต์</label>
+          <div style="display:flex;gap:8px">
+            <input id="projectExchangeRate" type="number" min="0" step="0.000001" value="1" inputmode="decimal">
+            <button type="button" class="btn btn-light" id="fetchRateBtn">ดึงเรท</button>
+          </div>
+          <div id="exchangeRateHint" class="muted" style="margin-top:5px"></div>
         </div>
-        <div id="exchangeRateHint" class="muted" style="margin-top:5px"></div>
       </div>
-      <div class="full"><label>รายการ</label><input id="projectExpenseName" placeholder="เช่น โรงแรม"></div>
-      <div><label>คนจ่าย</label><select id="projectExpensePayer"></select></div>
-      <div><label>วิธีแบ่ง</label><select id="projectSplitMode"><option value="equal">หารเท่ากัน</option><option value="custom">กำหนดยอดเอง</option></select></div>
-      <div class="full"><label>เลือกร่วมหาร</label><div id="projectParticipantChecks"></div></div>
-      <div id="customSplitWrap" class="full hidden">
-        <label>กำหนดยอดแต่ละคน</label>
-        <div id="customSplitRows"></div>
+    </section>
+
+    <section class="project-expense-section">
+      <div class="project-expense-section-title">การแบ่งค่าใช้จ่าย</div>
+      <div class="project-expense-grid">
+        <div><label>คนจ่าย</label><select id="projectExpensePayer"></select></div>
+        <div><label>วิธีแบ่ง</label><select id="projectSplitMode"><option value="equal">หารเท่ากัน</option><option value="custom">กำหนดยอดเอง</option></select></div>
+        <div class="full"><label>เลือกร่วมหาร</label><div id="projectParticipantChecks" class="project-participant-grid"></div></div>
+        <div id="customSplitWrap" class="full hidden">
+          <label>กำหนดยอดแต่ละคน</label>
+          <div id="customSplitRows"></div>
+        </div>
+        <div class="full project-expense-summary" aria-live="polite">
+          <div><span class="muted">ยอดรวม</span><strong id="projectSplitTotal">0</strong></div>
+          <div><span class="muted">ผู้ร่วมหาร</span><strong id="projectSplitCount">0 คน</strong></div>
+          <div><span class="muted">เฉลี่ยต่อคน</span><strong id="projectSplitEach">0</strong></div>
+        </div>
       </div>
-      <div class="full"><label>หมายเหตุ</label><textarea id="projectExpenseNote"></textarea></div>
-      <div class="full">
+    </section>
+
+    <section class="project-expense-section">
+      <div class="project-expense-section-title">หลักฐานและหมายเหตุ</div>
+      <div><label>หมายเหตุ</label><textarea id="projectExpenseNote" placeholder="ไม่บังคับ"></textarea></div>
+      <div style="margin-top:12px">
         <label>รูปบิล / หลักฐาน <strong class="expense">* บังคับแนบ</strong></label>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button type="button" class="btn btn-light" id="projectUploadImageBtn">📁 อัปโหลดรูป</button>
-          <button type="button" class="btn btn-light" id="projectCameraImageBtn">📷 เปิดกล้อง</button>
+        <div class="project-expense-upload-row">
+          <button type="button" class="btn btn-light" id="projectCameraImageBtn">📷 ถ่ายรูป</button>
+          <button type="button" class="btn btn-light" id="projectUploadImageBtn">🖼️ เลือกจากเครื่อง</button>
         </div>
         <input id="projectExpenseImages" type="file" accept="image/*" multiple class="hidden">
         <input id="projectExpenseCamera" type="file" accept="image/*" capture="environment" class="hidden">
-        <div class="muted" style="margin-top:8px">รูปจะถูกย่อและบีบอัดอัตโนมัติก่อนบันทึกขึ้น Cloud</div>
-        <div class="muted" style="margin-top:8px">ต้องแนบอย่างน้อย 1 รูปก่อนบันทึก สามารถเพิ่มหลายรูปและลบรูปที่เลือกผิดได้</div>
+        <div class="muted project-expense-preview-meta" id="projectExpensePreviewMeta">ยังไม่ได้แนบรูป</div>
         <div id="projectExpensePreview" class="preview-wrap" style="margin-top:8px"></div>
       </div>
-      <div class="full" style="text-align:right"><button class="btn btn-primary" onclick="saveProjectExpense()">บันทึกค่าใช้จ่าย</button></div>
+    </section>
+
+    <div class="project-expense-footer">
+      <button class="btn btn-primary" onclick="saveProjectExpense()">บันทึกค่าใช้จ่าย</button>
     </div>
   </div>
 </dialog>
