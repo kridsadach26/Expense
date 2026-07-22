@@ -316,12 +316,12 @@
     <h1>Harmony Haven</h1>
     <p>เลือกชื่อของคุณเพื่อเข้าใช้งาน</p>
     <div class="profile-grid">
-      <button class="profile-btn" onclick="loginAs('Toey')">
+      <button type="button" class="profile-btn" onclick="loginAs('Toey')">
         <img id="loginPhotoToey" class="avatar" alt="Toey">
         <div id="loginNameToey" class="profile-name">Toey</div>
         
       </button>
-      <button class="profile-btn" onclick="loginAs('Perla')">
+      <button type="button" class="profile-btn" onclick="loginAs('Perla')">
         <img id="loginPhotoPerla" class="avatar" alt="Perla">
         <div id="loginNamePerla" class="profile-name">Perla</div>
         
@@ -1084,6 +1084,17 @@ async function bootstrapCloudState(){
   }
   cloudReady=true;clearLegacyCloudData();
   refreshProfilesUI();refreshCategories();applyDashboardSettings();renderAll();
+  appBootstrapped=true;
+  // Cloud may update profile names/photos after the local startup. Preserve the
+  // selected user and never bring the chooser back on top of an active session.
+  if(validProfileKey(activeUser)){
+    const screen=$('loginScreen');
+    if(screen) screen.classList.add('hidden');
+  }else{
+    activeUser='';
+    localStorage.removeItem('home-expense-user');
+    showProfileChooser();
+  }
   setCloudStatus('ข้อมูล Cloud ล่าสุด','ok');
 }
 
@@ -1185,13 +1196,34 @@ function applyDashboardSettings(){
   $('chartCard').classList.toggle('hidden',hideChart);
 }
 
+let appBootstrapped=false;
+let loginInProgress=false;
+function validProfileKey(name){return !!name && Object.prototype.hasOwnProperty.call(profiles||{},name);}
+function showProfileChooser(){
+  const screen=$('loginScreen');
+  if(screen) screen.classList.remove('hidden');
+  loginInProgress=false;
+}
 function loginAs(name){
+  if(loginInProgress)return;
+  if(!validProfileKey(name)){
+    localStorage.removeItem('home-expense-user');
+    showProfileChooser();
+    return;
+  }
+  loginInProgress=true;
   activeUser=name;
-  $('currentUser').value=name;
-  $('activeUserName').textContent=profiles[name]?.name||name;
-  $('payer').value=name;
-  if(appSettings.rememberUser!==false) localStorage.setItem('home-expense-user',name);
-  $('loginScreen').classList.add('hidden');
+  // Keep the selected profile for this browser session. The remember setting only
+  // controls persistence across a full sign-out, not navigation inside the PWA.
+  localStorage.setItem('home-expense-user',name);
+  if($('currentUser')) $('currentUser').value=name;
+  if($('activeUserName')) $('activeUserName').textContent=profiles[name]?.name||name;
+  if($('payer')) $('payer').value=name;
+  const screen=$('loginScreen');
+  if(screen) screen.classList.add('hidden');
+  refreshProfilesUI();
+  renderAll();
+  requestAnimationFrame(()=>{loginInProgress=false;});
 }
 function logout(){
   activeUser='';
@@ -1233,8 +1265,10 @@ $('notifyRecurring').checked=appSettings.notifyRecurring!==false;
 $('notifyBudget').checked=appSettings.notifyBudget!==false;
 $('notifyCard').checked=appSettings.notifyCard!==false;
 applyDashboardSettings();
-if(activeUser){ loginAs(activeUser); }
-else { location.href='/'; }
+// Do not redirect when a remembered profile is unavailable. Redirect loops were
+// causing the profile picker to reappear and become unresponsive after sign-in.
+if(validProfileKey(activeUser)) loginAs(activeUser);
+else { activeUser=''; localStorage.removeItem('home-expense-user'); showProfileChooser(); }
 
 
 document.querySelectorAll('[data-period]').forEach(btn=>btn.addEventListener('click',()=>{
@@ -2440,7 +2474,15 @@ function renderAll(){
   if(!$('budget').classList.contains('hidden'))renderBudgets();
   if(!$('recurring').classList.contains('hidden'))renderRecurring();
 }
-bootstrapCloudState().catch(err=>{console.error(err);setCloudStatus('โหลด Cloud ไม่สำเร็จ','error');alert(`ไม่สามารถโหลดข้อมูลจาก Cloud ได้\n\nรายละเอียด: ${err?.message||'ไม่ทราบสาเหตุ'}\n\nให้รัน SQL 005_cloud_state_repair.sql และตรวจสอบ Environment Variables ใน Vercel`);});
+bootstrapCloudState().catch(err=>{
+  console.error(err);
+  cloudReady=false;
+  setCloudStatus('ใช้ข้อมูลชั่วคราว — Cloud ยังไม่พร้อม','error');
+  refreshProfilesUI();refreshCategories();applyDashboardSettings();renderAll();
+  if(validProfileKey(activeUser)) $('loginScreen')?.classList.add('hidden');
+  else showProfileChooser();
+  showToast('เชื่อมต่อ Cloud ไม่สำเร็จ แต่ยังเปิดแอปด้วยข้อมูลชั่วคราวได้');
+});
 </script>
 
 </body>
