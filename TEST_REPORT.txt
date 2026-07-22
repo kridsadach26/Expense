@@ -1,0 +1,28 @@
+Harmony Haven Stable v2.0.0 - Test Report
+
+Static checks
+- node --check public/assets/harmony-app-v2.js: PASS
+- ตรวจ ID ที่ JavaScript อ้างอิงกับ HTML: PASS
+  (cloudSyncStatus และ runtimeBanner เป็น element แบบ optional/dynamic)
+- ไม่พบการอ้าง filterMonth ที่ถูกลบแล้ว: PASS
+- escapeHtml มีอยู่: PASS
+
+Browser smoke tests (Chromium / Playwright, mocked Cloud API)
+- Boot จาก Cloud สำเร็จ: PASS
+- Active profile แสดง Toey: PASS
+- เปิดแท็บ Dashboard: PASS
+- เปิดแท็บเพิ่มรายการ: PASS
+- เปิดแท็บรายการย้อนหลัง: PASS
+- เปิดแท็บยอดค้าง: PASS
+- เปิดแท็บโปรเจกต์: PASS
+- เปิดแท็บปฏิทิน: PASS
+- เปิดแท็บงบประมาณ: PASS
+- เปิดแท็บรายการประจำ: PASS
+- เปิดแท็บบัตรเครดิต: PASS
+- เปิดแท็บตั้งค่า: PASS
+- กรองเดือนปัจจุบัน: PASS
+- รายการเก่าที่ไม่มี splits ไม่ทำให้ระบบล้ม: PASS
+- Calendar ที่มีอักขระ HTML แสดงอย่างปลอดภัย: PASS
+- Cloud API 500 แสดงหน้าลองใหม่โดยไม่เกิด Page Error: PASS
+- Cloud API 401 แสดงข้อความให้กลับ Login โดยไม่ Redirect วน: PASS
+- JavaScript page errors ระหว่าง Smoke Test: 0
