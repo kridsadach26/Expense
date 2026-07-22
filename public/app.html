@@ -295,6 +295,10 @@
 .cloud-sync-status.syncing{color:#a65d00}.cloud-sync-status.ok{color:#237a43}.cloud-sync-status.error{color:#b73737;background:#fff0f0}
 @media(max-width:800px){.cloud-sync-status{font-size:10px;padding:3px 6px}}
 
+
+.reimburse-box{border:1px solid #fed7aa;background:#fff7ed;border-radius:16px;padding:14px;margin-top:10px}
+.reimburse-card{border:1px solid var(--border,#e5e7eb);border-radius:16px;padding:14px;margin-bottom:10px;background:#fff}
+.reimburse-card.overdue{border-color:#fca5a5;background:#fff7f7}
 </style>
 </head>
 <body>
@@ -378,10 +382,14 @@
         <div id="metricExpense" class="card metric"><div class="label">รายจ่าย</div><div id="sumExpense" class="value expense">฿0</div></div>
         <div id="metricBalance" class="card metric"><div class="label">คงเหลือสุทธิ</div><div id="sumBalance" class="value balance">฿0</div></div>
         <div id="metricPending" class="card metric"><div class="label">ยอดที่ต้องเคลียร์</div><div id="sumPending" class="value">฿0</div></div>
+        <div id="metricReceivable" class="card metric"><div class="label">เงินที่ต้องได้รับคืน</div><div id="sumReceivable" class="value income">฿0</div></div>
       </div>
 
       <div id="chartTitle" class="section-title"><h2>รายจ่ายตามหมวดหมู่</h2><span id="chartPeriodLabel" class="muted"></span></div>
       <div id="chartCard" class="card"><div id="categoryChart" class="chart"></div></div>
+
+      <div class="section-title"><h2>เงินสำรองจ่ายที่รอรับคืน</h2><button class="btn btn-light" onclick="renderReimbursements()">รีเฟรช</button></div>
+      <div class="card"><div id="reimbursementList"></div></div>
 
       <div class="section-title"><h2>รายการล่าสุด</h2><button class="btn btn-light" onclick="showPage('history')">ดูทั้งหมด</button></div>
       <div class="card"><div id="latestList"></div></div>
@@ -442,6 +450,19 @@
           <div>
             <label>สถานะ</label>
             <select id="status"><option value="paid">จ่ายแล้ว</option><option value="pending">รอชำระ</option></select>
+          </div>
+          <div>
+            <label>ลักษณะรายการ</label>
+            <select id="expenseMode"><option value="normal">ค่าใช้จ่ายปกติ</option><option value="advance">สำรองจ่ายให้ผู้อื่น / รอรับคืน</option></select>
+          </div>
+          <div id="advanceFields" class="full reimburse-box hidden">
+            <div class="form-grid">
+              <div><label>ผู้ที่ต้องคืนเงิน</label><input id="advanceFor" placeholder="ชื่อบุคคลหรือหน่วยงาน"></div>
+              <div><label>ส่วนที่เป็นค่าใช้จ่ายของเรา</label><input id="advanceOwnShare" type="number" min="0" step="0.01" value="0"></div>
+              <div><label>ยอดที่ต้องได้รับคืน</label><input id="advanceReceivable" type="number" min="0" step="0.01" readonly></div>
+              <div><label>กำหนดคืน</label><input id="advanceDueDate" type="date"></div>
+            </div>
+            <div class="muted" style="margin-top:8px">ยอดเต็มยังนับเป็นเงินออกและยอดรูดบัตร แต่รายงานค่าใช้จ่ายส่วนตัวจะนับเฉพาะ “ส่วนที่เป็นค่าใช้จ่ายของเรา”</div>
           </div>
 
           <div class="full">
@@ -1023,7 +1044,7 @@ async function saveCloudState(){
 function queueCloudSave(){
   if(!cloudReady)return;
   clearTimeout(cloudSaveTimer);setCloudStatus('รอบันทึก…','syncing');
-  cloudSaveTimer=setTimeout(saveCloudState,350);
+  cloudSaveTimer=setTimeout(()=>{(window.requestIdleCallback||((fn)=>setTimeout(fn,0)))(saveCloudState)},1200);
 }
 async function bootstrapCloudState(){
   setCloudStatus('กำลังโหลด Cloud…','syncing');
@@ -1049,6 +1070,13 @@ const supportedCurrencies=[
 function entryBaseAmount(entry){
   return Number(entry.baseAmount ?? (Number(entry.amount||0)*Number(entry.exchangeRate||1)));
 }
+function entryReportAmount(entry){
+  if(entry?.type==='expense'&&entry?.expenseMode==='advance') return Number(entry.ownShareBase ?? (Number(entry.ownShare||0)*Number(entry.exchangeRate||1)));
+  return entryBaseAmount(entry);
+}
+function reimbursementPaid(entry){return (entry.reimbursementPayments||[]).reduce((s,p)=>s+Number(p.amount||0),0)}
+function reimbursementOutstanding(entry){return Math.max(0,Number(entry.receivableBase||0)-reimbursementPaid(entry))}
+function outstandingReimbursements(){return entries.filter(e=>e.type==='expense'&&e.expenseMode==='advance'&&reimbursementOutstanding(e)>0.009)}
 
 function currencyOptions(selected='THB'){
   return supportedCurrencies.map(([code,name])=>`<option value="${code}" ${code===selected?'selected':''}>${code} ${name}</option>`).join('');
@@ -1120,7 +1148,7 @@ function applyDashboardSettings(){
   $('metricIncome').classList.toggle('hidden',d.income===false);
   $('metricExpense').classList.toggle('hidden',d.expense===false);
   $('metricBalance').classList.toggle('hidden',d.balance===false);
-  $('metricPending').classList.toggle('hidden',d.pending===false);
+  $('metricPending').classList.toggle('hidden',d.pending===false); $('metricReceivable')?.classList.toggle('hidden',d.receivable===false);
   const hideChart=d.chart===false;
   $('chartTitle').classList.toggle('hidden',hideChart);
   $('chartCard').classList.toggle('hidden',hideChart);
@@ -1142,7 +1170,7 @@ function logout(){
 
 
 function money(n){ return '฿' + Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:0,maximumFractionDigits:2}); }
-function save(){ queueCloudSave(); renderAll(); }
+function save(){ queueCloudSave(); requestAnimationFrame(renderAll); }
 function today(){ return new Date().toISOString().slice(0,10); }
 $('date').value = today();
 $('filterMonth').value = today().slice(0,7);
@@ -1157,6 +1185,7 @@ $('summaryQuarter').value=Math.floor(new Date().getMonth()/3)+1;
 
 $('entryCurrency').innerHTML=currencyOptions('THB');
 $('entryCurrency').value='THB';
+updateAdvanceFields();
 
 
 refreshProfilesUI();
@@ -1321,6 +1350,21 @@ async function compressImage(file,maxWidth=1600,quality=.78,maxBytes=460800){
   return data;
 }
 
+function updateAdvanceFields(){
+  const isAdvance=$('type').value==='expense'&&$('expenseMode')?.value==='advance';
+  $('advanceFields')?.classList.toggle('hidden',!isAdvance);
+  if(isAdvance) updateAdvanceReceivable();
+}
+function updateAdvanceReceivable(){
+  const total=Number($('amount')?.value||0), own=Math.max(0,Number($('advanceOwnShare')?.value||0));
+  if($('advanceOwnShare')&&own>total)$('advanceOwnShare').value=total;
+  if($('advanceReceivable'))$('advanceReceivable').value=Math.max(0,total-Math.min(own,total)).toFixed(2);
+}
+$('expenseMode')?.addEventListener('change',updateAdvanceFields);
+$('amount')?.addEventListener('input',updateAdvanceReceivable);
+$('advanceOwnShare')?.addEventListener('input',updateAdvanceReceivable);
+$('type')?.addEventListener('change',updateAdvanceFields);
+
 $('entryForm')?.addEventListener('submit',e=>{
   e.preventDefault();
   const splits=[...document.querySelectorAll('.split-row')].map(row=>({
@@ -1349,6 +1393,11 @@ $('entryForm')?.addEventListener('submit',e=>{
     alert(creditCards.length?'กรุณาเลือกบัตรเครดิต':'กรุณาเพิ่มบัตรเครดิตก่อนบันทึกรายการ');
     return;
   }
+  const isAdvance=$('type').value==='expense'&&$('expenseMode')?.value==='advance';
+  const ownShare=isAdvance?Math.max(0,Math.min(amount,Number($('advanceOwnShare').value||0))):amount;
+  const receivable=isAdvance?Math.max(0,amount-ownShare):0;
+  if(isAdvance&&!$('advanceFor').value.trim()){alert('กรุณาระบุผู้ที่ต้องคืนเงิน');return;}
+  if(isAdvance&&receivable<=0){alert('ยอดที่ต้องได้รับคืนต้องมากกว่า 0');return;}
   entries.unshift({
     id:crypto.randomUUID(), createdAt:new Date().toISOString(), createdBy:activeUser || $('currentUser').value,
     type:$('type').value,date:$('date').value,amount,
@@ -1358,11 +1407,15 @@ $('entryForm')?.addEventListener('submit',e=>{
     category:$('category').value,
     merchant:$('merchant').value.trim(),payer:$('payer').value,payment:$('payment').value,
     cardId:selectedCardId||null,
-    status:$('status').value,note:$('note').value.trim(),images:imageData,splits
+    status:$('status').value,note:$('note').value.trim(),images:imageData,splits,
+    expenseMode:isAdvance?'advance':'normal',advanceFor:isAdvance?$('advanceFor').value.trim():'',
+    ownShare:isAdvance?ownShare:amount,ownShareBase:isAdvance?ownShare*entryRate:amount*entryRate,
+    receivable:isAdvance?receivable:0,receivableBase:isAdvance?receivable*entryRate:0,
+    advanceDueDate:isAdvance?$('advanceDueDate').value:'',reimbursementPayments:[]
   });
   save();
   e.target.reset(); $('date').value=today(); imageData=[]; $('preview').innerHTML=''; $('splitRows').innerHTML=''; $('splitSection').classList.add('hidden');
-  $('entryCurrency').value='THB'; $('entryExchangeRate').value=1; updateEntryRateHint(); updateSplitTotal();renderEntryCardOptions();
+  $('entryCurrency').value='THB'; $('entryExchangeRate').value=1; if($('expenseMode'))$('expenseMode').value='normal'; if($('advanceOwnShare'))$('advanceOwnShare').value=0; if($('advanceFor'))$('advanceFor').value=''; if($('advanceDueDate'))$('advanceDueDate').value=''; updateAdvanceFields(); updateEntryRateHint(); updateSplitTotal();renderEntryCardOptions();
   alert('บันทึกเรียบร้อย'); showPage('dashboard');
 });
 
@@ -1385,18 +1438,19 @@ function periodEntries(){
 }
 function renderDashboard(){
   const data=periodEntries();
+  renderReimbursements();
   const period=summaryPeriod();
   $('periodLabel').textContent=period.label;
   $('chartPeriodLabel').textContent=period.label;
   const income=data.filter(e=>e.type==='income').reduce((s,e)=>s+entryBaseAmount(e),0);
-  const expense=data.filter(e=>e.type==='expense').reduce((s,e)=>s+entryBaseAmount(e),0);
-  $('sumIncome').textContent=money(income); $('sumExpense').textContent=money(expense); $('sumBalance').textContent=money(income-expense);
+  const expense=data.filter(e=>e.type==='expense').reduce((s,e)=>s+entryReportAmount(e),0);
+  $('sumIncome').textContent=money(income); $('sumExpense').textContent=money(expense); $('sumBalance').textContent=money(income-expense); $('sumReceivable').textContent=money(outstandingReimbursements().reduce((s,e)=>s+reimbursementOutstanding(e),0));
   const pending=entries.flatMap(e=>e.type==='expense'?e.splits.map(s=>({...s,payer:e.payer})):[])
     .filter(s=>s.status==='unpaid'&&s.name!==s.payer).reduce((a,s)=>a+s.amount,0);
   $('sumPending').textContent=money(pending);
 
   const cats={};
-  data.filter(e=>e.type==='expense').forEach(e=>cats[e.category]=(cats[e.category]||0)+entryBaseAmount(e));
+  data.filter(e=>e.type==='expense').forEach(e=>cats[e.category]=(cats[e.category]||0)+entryReportAmount(e));
   const max=Math.max(...Object.values(cats),1);
   $('categoryChart').innerHTML=Object.keys(cats).length?Object.entries(cats).map(([k,v])=>`
     <div class="bar-wrap"><div class="muted">${money(v)}</div><div class="bar" style="height:${Math.max(6,v/max*130)}px"></div><div class="bar-label">${k}</div></div>`).join(''):'<div class="empty" style="width:100%">ยังไม่มีข้อมูลเดือนนี้</div>';
@@ -1413,11 +1467,12 @@ function filteredEntries(){
   return entries.filter(e=>(!q||[e.merchant,e.category,e.note,e.payer].join(' ').toLowerCase().includes(q))&&(!type||e.type===type)&&(!month||e.date.startsWith(month)));
 }
 function renderHistory(){
-  const data=filteredEntries();
+  const allData=filteredEntries();
+  const data=allData.slice(0,200);
   $('historyTable').innerHTML=data.length?`<table><thead><tr><th>วันที่</th><th>รายการ</th><th>ผู้จ่าย</th><th>ประเภท</th><th>ยอด</th><th>บิล</th><th></th></tr></thead><tbody>${
     data.map(e=>`<tr>
       <td>${e.date}</td><td><strong>${e.merchant}</strong><div class="muted">${e.category}</div></td>
-      <td>${profiles[e.payer]?.name||e.payer}</td><td><span class="badge ${e.type==='income'?'in':'out'}">${e.type==='income'?'รายรับ':'รายจ่าย'}</span></td>
+      <td>${profiles[e.payer]?.name||e.payer}</td><td><span class="badge ${e.type==='income'?'in':'out'}">${e.type==='income'?'รายรับ':e.expenseMode==='advance'?'สำรองจ่าย':'รายจ่าย'}</span></td>
       <td class="${e.type==='income'?'income':'expense'}">${e.currency&&e.currency!=='THB'?`${projectCurrency({currency:e.currency},e.amount)}<div class="muted">≈ ${money(entryBaseAmount(e))}</div>`:money(e.amount)}</td>
       <td>${e.images?.length||0} รูป</td>
       <td><div class="actions"><button class="btn btn-light" onclick="openDetail('${e.id}')">ดู</button><button class="btn btn-danger" onclick="removeEntry('${e.id}')">ลบ</button></div></td>
@@ -1425,6 +1480,20 @@ function renderHistory(){
   }</tbody></table>`:'<div class="empty">ไม่พบรายการ</div>';
 }
 ['search','filterType','filterMonth'].forEach(id=>$(id).addEventListener('input',renderHistory));
+
+function renderReimbursements(){
+  const el=$('reimbursementList');if(!el)return;
+  const rows=outstandingReimbursements().sort((a,b)=>(a.advanceDueDate||'9999').localeCompare(b.advanceDueDate||'9999'));
+  el.innerHTML=rows.length?rows.map(e=>{const out=reimbursementOutstanding(e),over=e.advanceDueDate&&e.advanceDueDate<today();return `<div class="reimburse-card ${over?'overdue':''}"><div class="list-row"><div><strong>${escapeHtml(e.advanceFor||'ไม่ระบุผู้คืน')}</strong><div>${escapeHtml(e.merchant||e.category||'รายการ')} · ${e.date}</div><div class="muted">กำหนดคืน ${e.advanceDueDate||'ไม่ระบุ'} · รับคืนแล้ว ${money(reimbursementPaid(e))}</div></div><div style="text-align:right"><div class="value income" style="font-size:22px;font-weight:800">${money(out)}</div><button class="btn btn-primary" onclick="recordReimbursement('${e.id}')">บันทึกรับคืน</button></div></div></div>`}).join(''):'<div class="empty">ไม่มีเงินสำรองจ่ายที่รอรับคืน</div>';
+}
+function recordReimbursement(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;const outstanding=reimbursementOutstanding(e);
+  const raw=prompt(`ยอดที่ได้รับคืน (คงเหลือ ${money(outstanding)})`,String(outstanding));if(raw===null)return;
+  const amount=Number(raw);if(!amount||amount<=0||amount>outstanding+0.01)return alert('ยอดรับคืนไม่ถูกต้อง');
+  const method=prompt('รับคืนเข้าทางใด เช่น บัญชีธนาคาร / เงินสด','บัญชีธนาคาร')||'ไม่ระบุ';
+  e.reimbursementPayments=[...(e.reimbursementPayments||[]),{id:crypto.randomUUID(),amount,date:today(),method,createdAt:new Date().toISOString(),receivedBy:activeUser}];
+  queueCloudSave();renderAll();alert(reimbursementOutstanding(e)<=0.01?'บันทึกรับคืนครบแล้ว':'บันทึกรับคืนบางส่วนแล้ว');
+}
 
 function renderSettle(){
   const obligations=[];
@@ -1450,6 +1519,7 @@ function openDetail(id){
     ${e.currency&&e.currency!=='THB'?`<p class="muted">คิดเป็นประมาณ ${money(entryBaseAmount(e))} · เรท ${Number(e.exchangeRate||1).toLocaleString()}</p>`:''}
     <p>หมวดหมู่: ${e.category}<br>ผู้จ่าย: ${profiles[e.payer]?.name||e.payer}<br>วิธีชำระ: ${e.payment}<br>ผู้บันทึก: ${profiles[e.createdBy]?.name||e.createdBy}</p>
     ${e.note?`<p>หมายเหตุ: ${e.note}</p>`:''}
+    ${e.expenseMode==='advance'?`<div class="reimburse-box"><strong>สำรองจ่ายให้ ${escapeHtml(e.advanceFor||'-')}</strong><div>ส่วนของเรา ${money(e.ownShareBase||0)} · ต้องได้รับคืน ${money(e.receivableBase||0)} · รับคืนแล้ว ${money(reimbursementPaid(e))} · คงเหลือ ${money(reimbursementOutstanding(e))}</div></div>`:''}
     ${e.splits?.length?`<h3>การแบ่งยอด</h3><table><tbody>${e.splits.map(s=>`<tr><td>${s.name}</td><td>${money(s.amount)}</td><td>${s.status==='paid'?'คืนแล้ว':'ยังไม่คืน'}</td></tr>`).join('')}</tbody></table>`:''}
     <h3>รูปบิล / หลักฐาน</h3>
     <div class="bill-grid">${e.images?.length?e.images.map(src=>`<img src="${src}">`).join(''):'<div class="muted">ไม่มีรูปแนบ</div>'}</div>`;
@@ -1869,7 +1939,7 @@ function saveFeatureData(){ queueCloudSave(); }
 function renderBudgets(){
   const month=today().slice(0,7);
   $('budgetList').innerHTML=budgets.length?budgets.map((b,i)=>{
-    const spent=entries.filter(e=>e.type==='expense'&&e.category===b.category&&e.date.startsWith(month)).reduce((s,e)=>s+entryBaseAmount(e),0);
+    const spent=entries.filter(e=>e.type==='expense'&&e.category===b.category&&e.date.startsWith(month)).reduce((s,e)=>s+entryReportAmount(e),0);
     const pct=b.amount?Math.round(spent/b.amount*100):0;
     return `<div class="card"><div class="list-row"><div><strong>${b.category}</strong><div class="muted">ใช้ ${money(spent)} จาก ${money(b.amount)}</div></div><button class="btn btn-danger" onclick="removeBudget(${i})">ลบ</button></div><div class="progress ${pct>100?'over':''}"><div style="width:${Math.min(pct,100)}%"></div></div><div class="muted" style="margin-top:6px">${pct}%</div></div>`;
   }).join(''):'<div class="card empty">ยังไม่ได้ตั้งงบประมาณ</div>';
@@ -1968,7 +2038,7 @@ function renderNotifications(){
   if(appSettings.notifyBudget!==false){
     const month=today().slice(0,7);
     budgets.forEach(b=>{
-      const spent=entries.filter(e=>e.type==='expense'&&e.category===b.category&&e.date.startsWith(month)).reduce((s,e)=>s+entryBaseAmount(e),0);
+      const spent=entries.filter(e=>e.type==='expense'&&e.category===b.category&&e.date.startsWith(month)).reduce((s,e)=>s+entryReportAmount(e),0);
       const pct=b.amount?spent/b.amount*100:0;
       if(pct>=b.alert) notices.push({danger:pct>=100,text:`งบ ${b.category} ใช้ไป ${Math.round(pct)}% (${money(spent)} จาก ${money(b.amount)})`});
     });
@@ -2305,7 +2375,13 @@ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(
 setInterval(checkDueCalendarReminders,60*60*1000);
 setTimeout(checkDueCalendarReminders,2500);
 
-function renderAll(){renderDashboard();renderHistory();renderSettle();renderProjects();renderCalendar();renderBudgets();renderRecurring();renderCards();renderNotifications();updateNotificationBadge();applyDashboardSettings();}
+function renderAll(){
+  renderDashboard();renderHistory();renderSettle();renderCards();renderNotifications();updateNotificationBadge();applyDashboardSettings();
+  if(!$('projects').classList.contains('hidden'))renderProjects();
+  if(!$('calendar').classList.contains('hidden'))renderCalendar();
+  if(!$('budget').classList.contains('hidden'))renderBudgets();
+  if(!$('recurring').classList.contains('hidden'))renderRecurring();
+}
 bootstrapCloudState().catch(err=>{console.error(err);setCloudStatus('โหลด Cloud ไม่สำเร็จ','error');alert(`ไม่สามารถโหลดข้อมูลจาก Cloud ได้\n\nรายละเอียด: ${err?.message||'ไม่ทราบสาเหตุ'}\n\nให้รัน SQL 005_cloud_state_repair.sql และตรวจสอบ Environment Variables ใน Vercel`);});
 </script>
 
