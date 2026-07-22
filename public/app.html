@@ -19,13 +19,6 @@
     .brand{font-size:22px;font-weight:800}
     .sub{font-size:12px;opacity:.9}
     .user-switch{display:flex;gap:8px;align-items:center}
-    .active-user-photo{width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.7);background:#fff}
-    .dashboard-profile{display:flex;align-items:center;gap:14px;margin-bottom:14px}
-    .dashboard-profile img{width:68px;height:68px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 7px 22px rgba(20,25,35,.12)}
-    .dashboard-profile .welcome{font-size:20px;font-weight:800}
-    .history-range{display:flex;gap:8px;align-items:end;flex-wrap:wrap;width:100%}
-    .history-range>div{flex:1;min-width:150px}
-    .history-filter-summary{margin:8px 0 12px}
     .user-switch select{border:0;border-radius:10px;padding:9px 12px}
     nav{display:flex;gap:8px;overflow:auto;background:#fff;padding:12px 14px;border-bottom:1px solid var(--line);position:sticky;top:86px;z-index:19;border-radius:0 0 18px 18px}
     nav button{white-space:nowrap;border:0;background:#f2f3f6;padding:10px 14px;border-radius:10px;cursor:pointer}
@@ -280,15 +273,6 @@
     .storage-actions>*{flex:1;min-width:170px}
     .storage-file-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
     .storage-file-row:last-child{border-bottom:0}
-    .attachment-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
-    .attachment-toolbar>*{min-width:140px}
-    .attachment-view-row{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
-    .attachment-view-row:last-child{border-bottom:0}
-    .attachment-thumb{width:52px;height:52px;border-radius:10px;object-fit:cover;background:#f3f4f6;border:1px solid var(--line)}
-    .pin-display{font-size:28px;letter-spacing:10px;text-align:center;font-weight:800;margin:8px 0 14px}
-    .pin-keypad{display:grid;grid-template-columns:repeat(3,72px);gap:10px;justify-content:center}
-    .pin-keypad button{height:56px;font-size:20px;font-weight:700}
-    @media(max-width:600px){.attachment-view-row{grid-template-columns:46px 1fr}.attachment-view-row .actions{grid-column:2}.attachment-thumb{width:46px;height:46px}.pin-keypad{grid-template-columns:repeat(3,64px)}}
     @media(max-width:800px){
       .storage-metrics{grid-template-columns:1fr 1fr}
       .storage-actions{display:grid;grid-template-columns:1fr}
@@ -302,10 +286,6 @@
 .cloud-sync-status.syncing{color:#a65d00}.cloud-sync-status.ok{color:#237a43}.cloud-sync-status.error{color:#b73737;background:#fff0f0}
 @media(max-width:800px){.cloud-sync-status{font-size:10px;padding:3px 6px}}
 
-
-.reimburse-box{border:1px solid #fed7aa;background:#fff7ed;border-radius:16px;padding:14px;margin-top:10px}
-.reimburse-card{border:1px solid var(--border,#e5e7eb);border-radius:16px;padding:14px;margin-bottom:10px;background:#fff}
-.reimburse-card.overdue{border-color:#fca5a5;background:#fff7f7}
 </style>
 </head>
 <body>
@@ -316,12 +296,12 @@
     <h1>Harmony Haven</h1>
     <p>เลือกชื่อของคุณเพื่อเข้าใช้งาน</p>
     <div class="profile-grid">
-      <button type="button" class="profile-btn" onclick="loginAs('Toey')">
+      <button class="profile-btn" onclick="loginAs('Toey')">
         <img id="loginPhotoToey" class="avatar" alt="Toey">
         <div id="loginNameToey" class="profile-name">Toey</div>
         
       </button>
-      <button type="button" class="profile-btn" onclick="loginAs('Perla')">
+      <button class="profile-btn" onclick="loginAs('Perla')">
         <img id="loginPhotoPerla" class="avatar" alt="Perla">
         <div id="loginNamePerla" class="profile-name">Perla</div>
         
@@ -339,7 +319,6 @@
         <div class="sub">Shared home expense tracker</div>
       </div>
       <div class="user-switch">
-        <img id="activeUserPhoto" class="active-user-photo" alt="ผู้ใช้งาน">
         <div>
           <div class="small">ผู้ใช้งาน</div>
           <strong id="activeUserName">-</strong>
@@ -385,23 +364,15 @@
       </div>
 
       <div id="notificationArea"></div>
-      <div class="card dashboard-profile">
-        <img id="dashboardUserPhoto" alt="รูปผู้ใช้งาน">
-        <div><div class="muted">ยินดีต้อนรับ</div><div id="dashboardUserName" class="welcome">-</div><div class="muted">ภาพที่เปลี่ยนในหน้าตั้งค่าจะแสดงตรงนี้อัตโนมัติ</div></div>
-      </div>
       <div class="grid summary">
         <div id="metricIncome" class="card metric"><div class="label">รายรับ</div><div id="sumIncome" class="value income">฿0</div></div>
         <div id="metricExpense" class="card metric"><div class="label">รายจ่าย</div><div id="sumExpense" class="value expense">฿0</div></div>
         <div id="metricBalance" class="card metric"><div class="label">คงเหลือสุทธิ</div><div id="sumBalance" class="value balance">฿0</div></div>
         <div id="metricPending" class="card metric"><div class="label">ยอดที่ต้องเคลียร์</div><div id="sumPending" class="value">฿0</div></div>
-        <div id="metricReceivable" class="card metric"><div class="label">เงินที่ต้องได้รับคืน</div><div id="sumReceivable" class="value income">฿0</div></div>
       </div>
 
       <div id="chartTitle" class="section-title"><h2>รายจ่ายตามหมวดหมู่</h2><span id="chartPeriodLabel" class="muted"></span></div>
       <div id="chartCard" class="card"><div id="categoryChart" class="chart"></div></div>
-
-      <div class="section-title"><h2>เงินสำรองจ่ายที่รอรับคืน</h2><button class="btn btn-light" onclick="renderReimbursements()">รีเฟรช</button></div>
-      <div class="card"><div id="reimbursementList"></div></div>
 
       <div class="section-title"><h2>รายการล่าสุด</h2><button class="btn btn-light" onclick="showPage('history')">ดูทั้งหมด</button></div>
       <div class="card"><div id="latestList"></div></div>
@@ -454,27 +425,9 @@
             <label>วิธีชำระ</label>
             <select id="payment"><option>เงินสด</option><option>โอนเงิน</option><option>บัตรเครดิต</option><option>พร้อมเพย์</option></select>
           </div>
-          <div id="entryCardWrap" class="hidden">
-            <label>เลือกบัตรเครดิต</label>
-            <select id="entryCardId"><option value="">กรุณาเลือกบัตร</option></select>
-            <div id="entryCardHint" class="muted" style="margin-top:5px"></div>
-          </div>
           <div>
             <label>สถานะ</label>
             <select id="status"><option value="paid">จ่ายแล้ว</option><option value="pending">รอชำระ</option></select>
-          </div>
-          <div>
-            <label>ลักษณะรายการ</label>
-            <select id="expenseMode"><option value="normal">ค่าใช้จ่ายปกติ</option><option value="advance">สำรองจ่ายให้ผู้อื่น / รอรับคืน</option></select>
-          </div>
-          <div id="advanceFields" class="full reimburse-box hidden">
-            <div class="form-grid">
-              <div><label>ผู้ที่ต้องคืนเงิน</label><input id="advanceFor" placeholder="ชื่อบุคคลหรือหน่วยงาน"></div>
-              <div><label>ส่วนที่เป็นค่าใช้จ่ายของเรา</label><input id="advanceOwnShare" type="number" min="0" step="0.01" value="0"></div>
-              <div><label>ยอดที่ต้องได้รับคืน</label><input id="advanceReceivable" type="number" min="0" step="0.01" readonly></div>
-              <div><label>กำหนดคืน</label><input id="advanceDueDate" type="date"></div>
-            </div>
-            <div class="muted" style="margin-top:8px">ยอดเต็มยังนับเป็นเงินออกและยอดรูดบัตร แต่รายงานค่าใช้จ่ายส่วนตัวจะนับเฉพาะ “ส่วนที่เป็นค่าใช้จ่ายของเรา”</div>
           </div>
 
           <div class="full">
@@ -518,24 +471,9 @@
         <div class="toolbar">
           <input id="search" placeholder="ค้นหาร้านค้า หมวดหมู่ หรือหมายเหตุ" />
           <select id="filterType"><option value="">ทุกประเภท</option><option value="expense">รายจ่าย</option><option value="income">รายรับ</option></select>
-          <select id="historyPeriodPreset">
-            <option value="all">ทุกช่วงเวลา</option>
-            <option value="today">วันนี้</option>
-            <option value="7days">7 วันล่าสุด</option>
-            <option value="30days">30 วันล่าสุด</option>
-            <option value="currentMonth">เดือนปัจจุบัน</option>
-            <option value="previousMonth">เดือนก่อน</option>
-            <option value="currentYear">ปีปัจจุบัน</option>
-            <option value="custom">กำหนดช่วงเอง</option>
-          </select>
+          <input id="filterMonth" type="month" />
           <button class="btn btn-dark" id="exportBtn">ส่งออก CSV</button>
         </div>
-        <div class="history-range">
-          <div><label>ตั้งแต่วันที่</label><input id="historyStartDate" type="date"></div>
-          <div><label>ถึงวันที่</label><input id="historyEndDate" type="date"></div>
-          <button type="button" class="btn btn-light" id="clearHistoryRangeBtn">ล้างช่วงเวลา</button>
-        </div>
-        <div id="historyFilterSummary" class="muted history-filter-summary"></div>
         <div id="historyTable"></div>
       </div>
     </section>
@@ -776,16 +714,6 @@
           </div>
         </div>
 
-        <div class="setting-card">
-          <h3 style="margin-top:0">คลังไฟล์แนบ</h3>
-          <p class="muted">ดูไฟล์แนบทั้งหมดพร้อมขนาดไฟล์ โดยต้องกรอกรหัสตัวเลขก่อนเข้า</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button id="openAttachmentVaultBtn" class="btn btn-dark" type="button">ดูไฟล์แนบทั้งหมด</button>
-            <button id="changeAttachmentPinBtn" class="btn btn-light" type="button">เปลี่ยนรหัสเข้าคลังไฟล์</button>
-          </div>
-          <div class="muted" style="margin-top:10px">รหัสเริ่มต้น 2604 กรุณาเปลี่ยนหลังติดตั้ง</div>
-        </div>
-
         <div class="setting-card full-storage-card">
           <h3 style="margin-top:0">พื้นที่จัดเก็บและไฟล์แนบ</h3>
           <p class="muted">แสดงข้อมูลจาก Supabase Storage แบบเรียลไทม์ และพื้นที่ในเบราว์เซอร์เครื่องนี้</p>
@@ -968,39 +896,10 @@
   </form></div>
 </dialog>
 <dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="notificationCenterDialog.close()">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
-
-<dialog id="attachmentPinDialog">
-  <div class="dialog-head"><strong>กรอกรหัสเข้าคลังไฟล์</strong><button class="btn btn-light" onclick="closeAttachmentPinDialog()">ปิด</button></div>
-  <div class="dialog-body">
-    <input id="attachmentPinInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="6" aria-label="รหัสเข้าคลังไฟล์" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
-    <div id="attachmentPinDisplay" class="pin-display">○ ○ ○ ○</div>
-    <div id="attachmentPinMessage" class="muted" style="text-align:center;margin-bottom:12px">พิมพ์ตัวเลขจากคีย์บอร์ด หรือกดปุ่มด้านล่าง</div>
-    <div class="pin-keypad">
-      <button class="btn btn-light" onclick="pinKey('1')">1</button><button class="btn btn-light" onclick="pinKey('2')">2</button><button class="btn btn-light" onclick="pinKey('3')">3</button>
-      <button class="btn btn-light" onclick="pinKey('4')">4</button><button class="btn btn-light" onclick="pinKey('5')">5</button><button class="btn btn-light" onclick="pinKey('6')">6</button>
-      <button class="btn btn-light" onclick="pinKey('7')">7</button><button class="btn btn-light" onclick="pinKey('8')">8</button><button class="btn btn-light" onclick="pinKey('9')">9</button>
-      <button class="btn btn-light" onclick="pinClear()">ล้าง</button><button class="btn btn-light" onclick="pinKey('0')">0</button><button class="btn btn-primary" onclick="submitAttachmentPin()">ตกลง</button>
-    </div>
-  </div>
-</dialog>
-
-<dialog id="attachmentVaultDialog" style="width:min(920px,96vw)">
-  <div class="dialog-head"><strong>คลังไฟล์แนบทั้งหมด</strong><button class="btn btn-light" onclick="attachmentVaultDialog.close()">ปิด</button></div>
-  <div class="dialog-body">
-    <div class="attachment-toolbar"><input id="attachmentVaultSearch" placeholder="ค้นหาชื่อไฟล์"><select id="attachmentVaultSort"><option value="newest">ใหม่ล่าสุด</option><option value="oldest">เก่าสุด</option><option value="largest">ขนาดใหญ่สุด</option><option value="smallest">ขนาดเล็กสุด</option></select><button id="refreshAttachmentVaultBtn" class="btn btn-light">รีเฟรช</button></div>
-    <div id="attachmentVaultSummary" class="muted"></div>
-    <div id="attachmentVaultList" style="margin-top:10px"></div>
-  </div>
-</dialog>
 <div id="toastStack" class="toast-stack"></div>
 
 <script>
 const $ = id => document.getElementById(id);
-function escapeHtml(value){
-  return String(value ?? '').replace(/[&<>"']/g, char => ({
-    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
-  })[char]);
-}
 let entries = JSON.parse(localStorage.getItem('home-expense-entries') || '[]');
 let imageData = [];
 let splitCounter = 0;
@@ -1019,8 +918,6 @@ let categories = JSON.parse(localStorage.getItem('home-expense-categories') || '
 let budgets = JSON.parse(localStorage.getItem('home-expense-budgets') || '[]');
 let recurringItems = JSON.parse(localStorage.getItem('home-expense-recurring') || '[]');
 let creditCards = JSON.parse(localStorage.getItem('home-expense-cards') || '[]');
-let openCardId='';
-let cardSelectedMonths={};
 
 let projects = JSON.parse(localStorage.getItem('home-expense-projects') || '[]');
 let calendarItems = JSON.parse(localStorage.getItem('home-expense-calendar') || '[]');
@@ -1051,7 +948,6 @@ function applyCloudState(state={}){
   budgets=Array.isArray(state.budgets)?state.budgets:[];
   recurringItems=Array.isArray(state.recurringItems)?state.recurringItems:[];
   creditCards=Array.isArray(state.creditCards)?state.creditCards:[];
-  normalizeCreditCards();
   projects=Array.isArray(state.projects)?state.projects:[];
   calendarItems=Array.isArray(state.calendarItems)?state.calendarItems:[];
   appNotifications=Array.isArray(state.appNotifications)?state.appNotifications:[];
@@ -1071,7 +967,7 @@ async function saveCloudState(){
 function queueCloudSave(){
   if(!cloudReady)return;
   clearTimeout(cloudSaveTimer);setCloudStatus('รอบันทึก…','syncing');
-  cloudSaveTimer=setTimeout(()=>{(window.requestIdleCallback||((fn)=>setTimeout(fn,0)))(saveCloudState)},1200);
+  cloudSaveTimer=setTimeout(saveCloudState,350);
 }
 async function bootstrapCloudState(){
   setCloudStatus('กำลังโหลด Cloud…','syncing');
@@ -1084,17 +980,6 @@ async function bootstrapCloudState(){
   }
   cloudReady=true;clearLegacyCloudData();
   refreshProfilesUI();refreshCategories();applyDashboardSettings();renderAll();
-  appBootstrapped=true;
-  // Cloud may update profile names/photos after the local startup. Preserve the
-  // selected user and never bring the chooser back on top of an active session.
-  if(validProfileKey(activeUser)){
-    const screen=$('loginScreen');
-    if(screen) screen.classList.add('hidden');
-  }else{
-    activeUser='';
-    localStorage.removeItem('home-expense-user');
-    showProfileChooser();
-  }
   setCloudStatus('ข้อมูล Cloud ล่าสุด','ok');
 }
 
@@ -1108,39 +993,12 @@ const supportedCurrencies=[
 function entryBaseAmount(entry){
   return Number(entry.baseAmount ?? (Number(entry.amount||0)*Number(entry.exchangeRate||1)));
 }
-function entryReportAmount(entry){
-  if(entry?.type==='expense'&&entry?.expenseMode==='advance') return Number(entry.ownShareBase ?? (Number(entry.ownShare||0)*Number(entry.exchangeRate||1)));
-  return entryBaseAmount(entry);
-}
-function reimbursementPaid(entry){return (entry.reimbursementPayments||[]).reduce((s,p)=>s+Number(p.amount||0),0)}
-function reimbursementOutstanding(entry){return Math.max(0,Number(entry.receivableBase||0)-reimbursementPaid(entry))}
-function outstandingReimbursements(){return entries.filter(e=>e.type==='expense'&&e.expenseMode==='advance'&&reimbursementOutstanding(e)>0.009)}
 
 function currencyOptions(selected='THB'){
   return supportedCurrencies.map(([code,name])=>`<option value="${code}" ${code===selected?'selected':''}>${code} ${name}</option>`).join('');
 }
 function expenseBaseAmount(e){
   return Number(e.baseAmount ?? (Number(e.amount||0)*Number(e.exchangeRate||1)));
-}
-function normalizeCreditCards(){
-  creditCards=(creditCards||[]).map(c=>({...c,id:c.id||crypto.randomUUID()}));
-}
-function cardById(id){return creditCards.find(c=>c.id===id)}
-function renderEntryCardOptions(){
-  const select=$('entryCardId');if(!select)return;
-  normalizeCreditCards();
-  const current=select.value;
-  const cards=creditCards.filter(c=>!activeUser||c.owner===activeUser);
-  select.innerHTML='<option value="">กรุณาเลือกบัตร</option>'+cards.map(c=>`<option value="${c.id}">${escapeHtml(c.name)} · ${escapeHtml(profiles[c.owner]?.name||c.owner)}</option>`).join('');
-  if(cards.some(c=>c.id===current))select.value=current;
-  updateEntryCardVisibility();
-}
-function updateEntryCardVisibility(){
-  const wrap=$('entryCardWrap');if(!wrap)return;
-  const isCard=$('type').value==='expense'&&$('payment').value==='บัตรเครดิต';
-  wrap.classList.toggle('hidden',!isCard);
-  const selected=cardById($('entryCardId')?.value);
-  $('entryCardHint').textContent=isCard?(selected?`ยอดรายการนี้จะถูกรวมในบัตร ${selected.name}`:(creditCards.length?'เลือกบัตรที่ใช้ชำระ':'ยังไม่มีบัตร กรุณาเพิ่มบัตรในแท็บบัตรเครดิตก่อน')):'';
 }
 
 
@@ -1164,15 +1022,10 @@ function refreshProfilesUI(){
   $('payer').innerHTML=`<option value="Toey">${t.name}</option><option value="Perla">${p.name}</option>`;
   ['recurringPayer','cardOwner'].forEach(id=>{ if($(id)) $(id).innerHTML=`<option value="Toey">${t.name}</option><option value="Perla">${p.name}</option>`; });
   if(activeUser){
-    const activeProfile=profiles[activeUser]||{name:activeUser,photo:''};
     $('currentUser').value=activeUser;
-    $('activeUserName').textContent=activeProfile.name||activeUser;
+    $('activeUserName').textContent=profiles[activeUser]?.name||activeUser;
     $('payer').value=activeUser;
-    if($('activeUserPhoto')) $('activeUserPhoto').src=activeProfile.photo||defaultAvatar(activeProfile.name||activeUser);
-    if($('dashboardUserPhoto')) $('dashboardUserPhoto').src=activeProfile.photo||defaultAvatar(activeProfile.name||activeUser);
-    if($('dashboardUserName')) $('dashboardUserName').textContent=activeProfile.name||activeUser;
   }
-  renderEntryCardOptions();
 }
 function refreshCategories(){
   $('category').innerHTML=categories.map(c=>`<option>${c}</option>`).join('');
@@ -1190,40 +1043,19 @@ function applyDashboardSettings(){
   $('metricIncome').classList.toggle('hidden',d.income===false);
   $('metricExpense').classList.toggle('hidden',d.expense===false);
   $('metricBalance').classList.toggle('hidden',d.balance===false);
-  $('metricPending').classList.toggle('hidden',d.pending===false); $('metricReceivable')?.classList.toggle('hidden',d.receivable===false);
+  $('metricPending').classList.toggle('hidden',d.pending===false);
   const hideChart=d.chart===false;
   $('chartTitle').classList.toggle('hidden',hideChart);
   $('chartCard').classList.toggle('hidden',hideChart);
 }
 
-let appBootstrapped=false;
-let loginInProgress=false;
-function validProfileKey(name){return !!name && Object.prototype.hasOwnProperty.call(profiles||{},name);}
-function showProfileChooser(){
-  const screen=$('loginScreen');
-  if(screen) screen.classList.remove('hidden');
-  loginInProgress=false;
-}
 function loginAs(name){
-  if(loginInProgress)return;
-  if(!validProfileKey(name)){
-    localStorage.removeItem('home-expense-user');
-    showProfileChooser();
-    return;
-  }
-  loginInProgress=true;
   activeUser=name;
-  // Keep the selected profile for this browser session. The remember setting only
-  // controls persistence across a full sign-out, not navigation inside the PWA.
-  localStorage.setItem('home-expense-user',name);
-  if($('currentUser')) $('currentUser').value=name;
-  if($('activeUserName')) $('activeUserName').textContent=profiles[name]?.name||name;
-  if($('payer')) $('payer').value=name;
-  const screen=$('loginScreen');
-  if(screen) screen.classList.add('hidden');
-  refreshProfilesUI();
-  renderAll();
-  requestAnimationFrame(()=>{loginInProgress=false;});
+  $('currentUser').value=name;
+  $('activeUserName').textContent=profiles[name]?.name||name;
+  $('payer').value=name;
+  if(appSettings.rememberUser!==false) localStorage.setItem('home-expense-user',name);
+  $('loginScreen').classList.add('hidden');
 }
 function logout(){
   activeUser='';
@@ -1233,7 +1065,7 @@ function logout(){
 
 
 function money(n){ return '฿' + Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:0,maximumFractionDigits:2}); }
-function save(){ queueCloudSave(); requestAnimationFrame(renderAll); }
+function save(){ queueCloudSave(); renderAll(); }
 function today(){ return new Date().toISOString().slice(0,10); }
 $('date').value = today();
 $('filterMonth').value = today().slice(0,7);
@@ -1248,7 +1080,6 @@ $('summaryQuarter').value=Math.floor(new Date().getMonth()/3)+1;
 
 $('entryCurrency').innerHTML=currencyOptions('THB');
 $('entryCurrency').value='THB';
-updateAdvanceFields();
 
 
 refreshProfilesUI();
@@ -1265,10 +1096,8 @@ $('notifyRecurring').checked=appSettings.notifyRecurring!==false;
 $('notifyBudget').checked=appSettings.notifyBudget!==false;
 $('notifyCard').checked=appSettings.notifyCard!==false;
 applyDashboardSettings();
-// Do not redirect when a remembered profile is unavailable. Redirect loops were
-// causing the profile picker to reappear and become unresponsive after sign-in.
-if(validProfileKey(activeUser)) loginAs(activeUser);
-else { activeUser=''; localStorage.removeItem('home-expense-user'); showProfileChooser(); }
+if(activeUser){ loginAs(activeUser); }
+else { location.href='/'; }
 
 
 document.querySelectorAll('[data-period]').forEach(btn=>btn.addEventListener('click',()=>{
@@ -1415,21 +1244,6 @@ async function compressImage(file,maxWidth=1600,quality=.78,maxBytes=460800){
   return data;
 }
 
-function updateAdvanceFields(){
-  const isAdvance=$('type').value==='expense'&&$('expenseMode')?.value==='advance';
-  $('advanceFields')?.classList.toggle('hidden',!isAdvance);
-  if(isAdvance) updateAdvanceReceivable();
-}
-function updateAdvanceReceivable(){
-  const total=Number($('amount')?.value||0), own=Math.max(0,Number($('advanceOwnShare')?.value||0));
-  if($('advanceOwnShare')&&own>total)$('advanceOwnShare').value=total;
-  if($('advanceReceivable'))$('advanceReceivable').value=Math.max(0,total-Math.min(own,total)).toFixed(2);
-}
-$('expenseMode')?.addEventListener('change',updateAdvanceFields);
-$('amount')?.addEventListener('input',updateAdvanceReceivable);
-$('advanceOwnShare')?.addEventListener('input',updateAdvanceReceivable);
-$('type')?.addEventListener('change',updateAdvanceFields);
-
 $('entryForm')?.addEventListener('submit',e=>{
   e.preventDefault();
   const splits=[...document.querySelectorAll('.split-row')].map(row=>({
@@ -1453,16 +1267,6 @@ $('entryForm')?.addEventListener('submit',e=>{
       return;
     }
   }
-  const selectedCardId=$('type').value==='expense'&&$('payment').value==='บัตรเครดิต'?$('entryCardId').value:'';
-  if($('type').value==='expense'&&$('payment').value==='บัตรเครดิต'&&!selectedCardId){
-    alert(creditCards.length?'กรุณาเลือกบัตรเครดิต':'กรุณาเพิ่มบัตรเครดิตก่อนบันทึกรายการ');
-    return;
-  }
-  const isAdvance=$('type').value==='expense'&&$('expenseMode')?.value==='advance';
-  const ownShare=isAdvance?Math.max(0,Math.min(amount,Number($('advanceOwnShare').value||0))):amount;
-  const receivable=isAdvance?Math.max(0,amount-ownShare):0;
-  if(isAdvance&&!$('advanceFor').value.trim()){alert('กรุณาระบุผู้ที่ต้องคืนเงิน');return;}
-  if(isAdvance&&receivable<=0){alert('ยอดที่ต้องได้รับคืนต้องมากกว่า 0');return;}
   entries.unshift({
     id:crypto.randomUUID(), createdAt:new Date().toISOString(), createdBy:activeUser || $('currentUser').value,
     type:$('type').value,date:$('date').value,amount,
@@ -1471,16 +1275,11 @@ $('entryForm')?.addEventListener('submit',e=>{
     baseAmount:amount*($('entryCurrency').value==='THB'?1:Number($('entryExchangeRate').value||0)),
     category:$('category').value,
     merchant:$('merchant').value.trim(),payer:$('payer').value,payment:$('payment').value,
-    cardId:selectedCardId||null,
-    status:$('status').value,note:$('note').value.trim(),images:imageData,splits,
-    expenseMode:isAdvance?'advance':'normal',advanceFor:isAdvance?$('advanceFor').value.trim():'',
-    ownShare:isAdvance?ownShare:amount,ownShareBase:isAdvance?ownShare*entryRate:amount*entryRate,
-    receivable:isAdvance?receivable:0,receivableBase:isAdvance?receivable*entryRate:0,
-    advanceDueDate:isAdvance?$('advanceDueDate').value:'',reimbursementPayments:[]
+    status:$('status').value,note:$('note').value.trim(),images:imageData,splits
   });
   save();
   e.target.reset(); $('date').value=today(); imageData=[]; $('preview').innerHTML=''; $('splitRows').innerHTML=''; $('splitSection').classList.add('hidden');
-  $('entryCurrency').value='THB'; $('entryExchangeRate').value=1; if($('expenseMode'))$('expenseMode').value='normal'; if($('advanceOwnShare'))$('advanceOwnShare').value=0; if($('advanceFor'))$('advanceFor').value=''; if($('advanceDueDate'))$('advanceDueDate').value=''; updateAdvanceFields(); updateEntryRateHint(); updateSplitTotal();renderEntryCardOptions();
+  $('entryCurrency').value='THB'; $('entryExchangeRate').value=1; updateEntryRateHint(); updateSplitTotal();
   alert('บันทึกเรียบร้อย'); showPage('dashboard');
 });
 
@@ -1502,24 +1301,19 @@ function periodEntries(){
   return entries.filter(e=>e.date>=p.start && e.date<=p.end);
 }
 function renderDashboard(){
-  const activeProfile=profiles[activeUser]||{name:activeUser||'-',photo:''};
-  if($('dashboardUserPhoto')) $('dashboardUserPhoto').src=activeProfile.photo||defaultAvatar(activeProfile.name||activeUser||'?');
-  if($('dashboardUserName')) $('dashboardUserName').textContent=activeProfile.name||activeUser||'-';
-  if($('activeUserPhoto')) $('activeUserPhoto').src=activeProfile.photo||defaultAvatar(activeProfile.name||activeUser||'?');
   const data=periodEntries();
-  renderReimbursements();
   const period=summaryPeriod();
   $('periodLabel').textContent=period.label;
   $('chartPeriodLabel').textContent=period.label;
   const income=data.filter(e=>e.type==='income').reduce((s,e)=>s+entryBaseAmount(e),0);
-  const expense=data.filter(e=>e.type==='expense').reduce((s,e)=>s+entryReportAmount(e),0);
-  $('sumIncome').textContent=money(income); $('sumExpense').textContent=money(expense); $('sumBalance').textContent=money(income-expense); $('sumReceivable').textContent=money(outstandingReimbursements().reduce((s,e)=>s+reimbursementOutstanding(e),0));
+  const expense=data.filter(e=>e.type==='expense').reduce((s,e)=>s+entryBaseAmount(e),0);
+  $('sumIncome').textContent=money(income); $('sumExpense').textContent=money(expense); $('sumBalance').textContent=money(income-expense);
   const pending=entries.flatMap(e=>e.type==='expense'?e.splits.map(s=>({...s,payer:e.payer})):[])
     .filter(s=>s.status==='unpaid'&&s.name!==s.payer).reduce((a,s)=>a+s.amount,0);
   $('sumPending').textContent=money(pending);
 
   const cats={};
-  data.filter(e=>e.type==='expense').forEach(e=>cats[e.category]=(cats[e.category]||0)+entryReportAmount(e));
+  data.filter(e=>e.type==='expense').forEach(e=>cats[e.category]=(cats[e.category]||0)+entryBaseAmount(e));
   const max=Math.max(...Object.values(cats),1);
   $('categoryChart').innerHTML=Object.keys(cats).length?Object.entries(cats).map(([k,v])=>`
     <div class="bar-wrap"><div class="muted">${money(v)}</div><div class="bar" style="height:${Math.max(6,v/max*130)}px"></div><div class="bar-label">${k}</div></div>`).join(''):'<div class="empty" style="width:100%">ยังไม่มีข้อมูลเดือนนี้</div>';
@@ -1531,61 +1325,23 @@ function renderDashboard(){
     </div>`).join(''):'<div class="empty">ยังไม่มีรายการ</div>';
 }
 
-function historyRangeLabel(start,end){
-  if(!start&&!end)return 'กำลังแสดงทุกช่วงเวลา';
-  const fmt=v=>v?new Date(v+'T12:00:00').toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'}):'ไม่จำกัด';
-  return `ช่วง ${fmt(start)} ถึง ${fmt(end)}`;
-}
-function setHistoryPeriodPreset(value){
-  const now=new Date(), start=$('historyStartDate'), end=$('historyEndDate');
-  const set=(a,b)=>{start.value=a||'';end.value=b||'';};
-  if(value==='custom'){renderHistory();return;}
-  if(value==='all')set('','');
-  else if(value==='today'){const d=ymd(now);set(d,d);}
-  else if(value==='7days'){const d=new Date(now);d.setDate(d.getDate()-6);set(ymd(d),ymd(now));}
-  else if(value==='30days'){const d=new Date(now);d.setDate(d.getDate()-29);set(ymd(d),ymd(now));}
-  else if(value==='currentMonth')set(ymd(new Date(now.getFullYear(),now.getMonth(),1)),ymd(new Date(now.getFullYear(),now.getMonth()+1,0)));
-  else if(value==='previousMonth')set(ymd(new Date(now.getFullYear(),now.getMonth()-1,1)),ymd(new Date(now.getFullYear(),now.getMonth(),0)));
-  else if(value==='currentYear')set(`${now.getFullYear()}-01-01`,`${now.getFullYear()}-12-31`);
-  renderHistory();
-}
 function filteredEntries(){
-  const q=$('search').value.toLowerCase(), type=$('filterType').value;
-  const start=$('historyStartDate')?.value||'', end=$('historyEndDate')?.value||'';
-  return entries.filter(e=>(!q||[e.merchant,e.category,e.note,e.payer].join(' ').toLowerCase().includes(q))&&(!type||e.type===type)&&(!start||e.date>=start)&&(!end||e.date<=end));
+  const q=$('search').value.toLowerCase(), type=$('filterType').value, month=$('filterMonth').value;
+  return entries.filter(e=>(!q||[e.merchant,e.category,e.note,e.payer].join(' ').toLowerCase().includes(q))&&(!type||e.type===type)&&(!month||e.date.startsWith(month)));
 }
 function renderHistory(){
-  const allData=filteredEntries();
-  const data=allData.slice(0,200);
-  const start=$('historyStartDate')?.value||'', end=$('historyEndDate')?.value||'';
-  if($('historyFilterSummary')) $('historyFilterSummary').textContent=`${historyRangeLabel(start,end)} · พบ ${allData.length} รายการ${allData.length>200?' · แสดง 200 รายการแรก':''}`;
+  const data=filteredEntries();
   $('historyTable').innerHTML=data.length?`<table><thead><tr><th>วันที่</th><th>รายการ</th><th>ผู้จ่าย</th><th>ประเภท</th><th>ยอด</th><th>บิล</th><th></th></tr></thead><tbody>${
     data.map(e=>`<tr>
       <td>${e.date}</td><td><strong>${e.merchant}</strong><div class="muted">${e.category}</div></td>
-      <td>${profiles[e.payer]?.name||e.payer}</td><td><span class="badge ${e.type==='income'?'in':'out'}">${e.type==='income'?'รายรับ':e.expenseMode==='advance'?'สำรองจ่าย':'รายจ่าย'}</span></td>
+      <td>${profiles[e.payer]?.name||e.payer}</td><td><span class="badge ${e.type==='income'?'in':'out'}">${e.type==='income'?'รายรับ':'รายจ่าย'}</span></td>
       <td class="${e.type==='income'?'income':'expense'}">${e.currency&&e.currency!=='THB'?`${projectCurrency({currency:e.currency},e.amount)}<div class="muted">≈ ${money(entryBaseAmount(e))}</div>`:money(e.amount)}</td>
       <td>${e.images?.length||0} รูป</td>
       <td><div class="actions"><button class="btn btn-light" onclick="openDetail('${e.id}')">ดู</button><button class="btn btn-danger" onclick="removeEntry('${e.id}')">ลบ</button></div></td>
     </tr>`).join('')
-  }</tbody></table>`:'<div class="empty">ไม่พบรายการในช่วงเวลาที่เลือก</div>';
+  }</tbody></table>`:'<div class="empty">ไม่พบรายการ</div>';
 }
-['search','filterType','historyStartDate','historyEndDate'].forEach(id=>$(id)?.addEventListener('input',()=>{if((id==='historyStartDate'||id==='historyEndDate')&&$('historyPeriodPreset'))$('historyPeriodPreset').value='custom';renderHistory()}));
-$('historyPeriodPreset')?.addEventListener('change',e=>setHistoryPeriodPreset(e.target.value));
-$('clearHistoryRangeBtn')?.addEventListener('click',()=>{$('historyPeriodPreset').value='all';setHistoryPeriodPreset('all')});
-
-function renderReimbursements(){
-  const el=$('reimbursementList');if(!el)return;
-  const rows=outstandingReimbursements().sort((a,b)=>(a.advanceDueDate||'9999').localeCompare(b.advanceDueDate||'9999'));
-  el.innerHTML=rows.length?rows.map(e=>{const out=reimbursementOutstanding(e),over=e.advanceDueDate&&e.advanceDueDate<today();return `<div class="reimburse-card ${over?'overdue':''}"><div class="list-row"><div><strong>${escapeHtml(e.advanceFor||'ไม่ระบุผู้คืน')}</strong><div>${escapeHtml(e.merchant||e.category||'รายการ')} · ${e.date}</div><div class="muted">กำหนดคืน ${e.advanceDueDate||'ไม่ระบุ'} · รับคืนแล้ว ${money(reimbursementPaid(e))}</div></div><div style="text-align:right"><div class="value income" style="font-size:22px;font-weight:800">${money(out)}</div><button class="btn btn-primary" onclick="recordReimbursement('${e.id}')">บันทึกรับคืน</button></div></div></div>`}).join(''):'<div class="empty">ไม่มีเงินสำรองจ่ายที่รอรับคืน</div>';
-}
-function recordReimbursement(id){
-  const e=entries.find(x=>x.id===id);if(!e)return;const outstanding=reimbursementOutstanding(e);
-  const raw=prompt(`ยอดที่ได้รับคืน (คงเหลือ ${money(outstanding)})`,String(outstanding));if(raw===null)return;
-  const amount=Number(raw);if(!amount||amount<=0||amount>outstanding+0.01)return alert('ยอดรับคืนไม่ถูกต้อง');
-  const method=prompt('รับคืนเข้าทางใด เช่น บัญชีธนาคาร / เงินสด','บัญชีธนาคาร')||'ไม่ระบุ';
-  e.reimbursementPayments=[...(e.reimbursementPayments||[]),{id:crypto.randomUUID(),amount,date:today(),method,createdAt:new Date().toISOString(),receivedBy:activeUser}];
-  queueCloudSave();renderAll();alert(reimbursementOutstanding(e)<=0.01?'บันทึกรับคืนครบแล้ว':'บันทึกรับคืนบางส่วนแล้ว');
-}
+['search','filterType','filterMonth'].forEach(id=>$(id).addEventListener('input',renderHistory));
 
 function renderSettle(){
   const obligations=[];
@@ -1611,7 +1367,6 @@ function openDetail(id){
     ${e.currency&&e.currency!=='THB'?`<p class="muted">คิดเป็นประมาณ ${money(entryBaseAmount(e))} · เรท ${Number(e.exchangeRate||1).toLocaleString()}</p>`:''}
     <p>หมวดหมู่: ${e.category}<br>ผู้จ่าย: ${profiles[e.payer]?.name||e.payer}<br>วิธีชำระ: ${e.payment}<br>ผู้บันทึก: ${profiles[e.createdBy]?.name||e.createdBy}</p>
     ${e.note?`<p>หมายเหตุ: ${e.note}</p>`:''}
-    ${e.expenseMode==='advance'?`<div class="reimburse-box"><strong>สำรองจ่ายให้ ${escapeHtml(e.advanceFor||'-')}</strong><div>ส่วนของเรา ${money(e.ownShareBase||0)} · ต้องได้รับคืน ${money(e.receivableBase||0)} · รับคืนแล้ว ${money(reimbursementPaid(e))} · คงเหลือ ${money(reimbursementOutstanding(e))}</div></div>`:''}
     ${e.splits?.length?`<h3>การแบ่งยอด</h3><table><tbody>${e.splits.map(s=>`<tr><td>${s.name}</td><td>${money(s.amount)}</td><td>${s.status==='paid'?'คืนแล้ว':'ยังไม่คืน'}</td></tr>`).join('')}</tbody></table>`:''}
     <h3>รูปบิล / หลักฐาน</h3>
     <div class="bill-grid">${e.images?.length?e.images.map(src=>`<img src="${src}">`).join(''):'<div class="muted">ไม่มีรูปแนบ</div>'}</div>`;
@@ -2031,7 +1786,7 @@ function saveFeatureData(){ queueCloudSave(); }
 function renderBudgets(){
   const month=today().slice(0,7);
   $('budgetList').innerHTML=budgets.length?budgets.map((b,i)=>{
-    const spent=entries.filter(e=>e.type==='expense'&&e.category===b.category&&e.date.startsWith(month)).reduce((s,e)=>s+entryReportAmount(e),0);
+    const spent=entries.filter(e=>e.type==='expense'&&e.category===b.category&&e.date.startsWith(month)).reduce((s,e)=>s+entryBaseAmount(e),0);
     const pct=b.amount?Math.round(spent/b.amount*100):0;
     return `<div class="card"><div class="list-row"><div><strong>${b.category}</strong><div class="muted">ใช้ ${money(spent)} จาก ${money(b.amount)}</div></div><button class="btn btn-danger" onclick="removeBudget(${i})">ลบ</button></div><div class="progress ${pct>100?'over':''}"><div style="width:${Math.min(pct,100)}%"></div></div><div class="muted" style="margin-top:6px">${pct}%</div></div>`;
   }).join(''):'<div class="card empty">ยังไม่ได้ตั้งงบประมาณ</div>';
@@ -2072,65 +1827,27 @@ function postRecurring(i){
   save();alert('บันทึกเป็นรายจ่ายแล้ว');
 }
 
-function cardTransactions(c,month){
-  return entries.filter(e=>e.type==='expense'&&e.payment==='บัตรเครดิต'&&e.date.startsWith(month)&&(e.cardId===c.id||(!e.cardId&&e.payer===c.owner&&creditCards.filter(x=>x.owner===c.owner).length===1))).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
-}
-function toggleCardDetails(cardId){
-  openCardId=openCardId===cardId?'':cardId;
-  if(openCardId&&!cardSelectedMonths[cardId])cardSelectedMonths[cardId]=today().slice(0,7);
-  renderCards();
-}
-function setCardMonth(cardId,value){
-  cardSelectedMonths[cardId]=value||today().slice(0,7);
-  openCardId=cardId;
-  renderCards();
-}
 function renderCards(){
-  normalizeCreditCards();
-  const currentMonth=today().slice(0,7);
   $('cardList').innerHTML=creditCards.length?creditCards.map((c,i)=>{
-    const currentTx=cardTransactions(c,currentMonth);
-    const currentTotal=currentTx.reduce((s,e)=>s+entryBaseAmount(e),0);
-    const isOpen=openCardId===c.id;
-    const selectedMonth=cardSelectedMonths[c.id]||currentMonth;
-    const tx=cardTransactions(c,selectedMonth);
-    const selectedTotal=tx.reduce((s,e)=>s+entryBaseAmount(e),0);
-    const monthLabel=new Date(selectedMonth+'-01T12:00:00').toLocaleDateString('th-TH',{month:'long',year:'numeric'});
-    const rows=tx.length?tx.map(e=>`<div class="list-row"><div><strong>${escapeHtml(e.merchant||e.category||'รายการ')}</strong><div class="muted">${e.date} · ${escapeHtml(e.category||'')} · ${escapeHtml(e.payer||'')}</div></div><strong class="expense">${money(entryBaseAmount(e))}</strong></div>`).join(''):'<div class="empty" style="margin-top:10px">ยังไม่มีรายการรูดในเดือนนี้</div>';
-    const detail=isOpen?`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border,#e5e7eb)" onclick="event.stopPropagation()"><div class="form-grid"><div><label>เลือกเดือน</label><input type="month" value="${selectedMonth}" onchange="setCardMonth('${c.id}',this.value)"></div><div class="metric"><div class="label">ยอดรวม ${monthLabel}</div><div class="value expense">${money(selectedTotal)}</div><div class="muted">${tx.length} รายการ</div></div></div><div style="margin-top:10px">${rows}</div></div>`:'';
-    return `<div class="card" style="cursor:pointer" onclick="toggleCardDetails('${c.id}')"><div class="list-row"><div><strong>${escapeHtml(c.name)}</strong><div class="muted">${escapeHtml(profiles[c.owner]?.name||c.owner)} · ตัดรอบวันที่ ${c.cutDay} · ชำระวันที่ ${c.dueDay}</div></div><div class="actions"><span class="muted">${isOpen?'ซ่อนรายการ':'คลิกเพื่อดูรายการ'}</span><button class="btn btn-light" onclick="event.stopPropagation();editCardName(${i})">แก้ไขชื่อ</button><button class="btn btn-danger" onclick="event.stopPropagation();removeCard(${i})">ลบ</button></div></div><div class="metric"><div class="label">ยอดรูดเดือนนี้</div><div class="value expense">${money(currentTotal)}</div><div class="muted">${currentTx.length} รายการ</div></div>${detail}</div>`;
+    const month=today().slice(0,7);
+    const total=entries.filter(e=>e.type==='expense'&&e.payment==='บัตรเครดิต'&&e.payer===c.owner&&e.date.startsWith(month)).reduce((s,e)=>s+entryBaseAmount(e),0);
+    return `<div class="card"><div class="list-row"><div><strong>${c.name}</strong><div class="muted">${profiles[c.owner]?.name||c.owner} · ตัดรอบวันที่ ${c.cutDay} · ชำระวันที่ ${c.dueDay}</div></div><button class="btn btn-danger" onclick="removeCard(${i})">ลบ</button></div><div class="metric"><div class="label">ยอดรูดเดือนนี้</div><div class="value expense">${money(total)}</div></div></div>`;
   }).join(''):'<div class="card empty">ยังไม่มีข้อมูลบัตรเครดิต</div>';
-  renderEntryCardOptions();
 }
 $('addCardBtn').onclick=()=>{
   const name=$('cardName').value.trim();
   if(!name)return alert('กรุณาระบุชื่อบัตร');
-  creditCards.push({id:crypto.randomUUID(),name,owner:$('cardOwner').value,cutDay:Number($('cardCutDay').value),dueDay:Number($('cardDueDay').value)});
+  creditCards.push({name,owner:$('cardOwner').value,cutDay:Number($('cardCutDay').value),dueDay:Number($('cardDueDay').value)});
   saveFeatureData();$('cardName').value='';renderCards();renderNotifications();
 };
-function editCardName(i){
-  const card=creditCards[i];
-  if(!card)return;
-  const name=prompt('ชื่อบัตรเครดิต',card.name||'');
-  if(name===null)return;
-  const clean=name.trim();
-  if(!clean)return alert('กรุณาระบุชื่อบัตร');
-  card.name=clean;
-  saveFeatureData();renderCards();renderNotifications();
-}
-function removeCard(i){
-  const c=creditCards[i];
-  const used=entries.some(e=>e.cardId===c?.id);
-  if(used&&!confirm('บัตรนี้มีรายการค่าใช้จ่ายอยู่ หากลบ รายการเดิมจะยังอยู่แต่จะไม่ผูกกับบัตร ต้องการลบหรือไม่?'))return;
-  creditCards.splice(i,1);saveFeatureData();renderCards();renderNotifications();
-}
+function removeCard(i){creditCards.splice(i,1);saveFeatureData();renderCards();renderNotifications();}
 
 function renderNotifications(){
   const notices=[];
   if(appSettings.notifyBudget!==false){
     const month=today().slice(0,7);
     budgets.forEach(b=>{
-      const spent=entries.filter(e=>e.type==='expense'&&e.category===b.category&&e.date.startsWith(month)).reduce((s,e)=>s+entryReportAmount(e),0);
+      const spent=entries.filter(e=>e.type==='expense'&&e.category===b.category&&e.date.startsWith(month)).reduce((s,e)=>s+entryBaseAmount(e),0);
       const pct=b.amount?spent/b.amount*100:0;
       if(pct>=b.alert) notices.push({danger:pct>=100,text:`งบ ${b.category} ใช้ไป ${Math.round(pct)}% (${money(spent)} จาก ${money(b.amount)})`});
     });
@@ -2181,149 +1898,6 @@ $('restoreFile')?.addEventListener('change',async e=>{
 });
 
 
-let attachmentPinBuffer='';
-let attachmentVaultFiles=[];
-let attachmentVaultEmbedded=new Map();
-function attachmentPin(){return String(appSettings.attachmentPin||'2604')}
-function renderAttachmentPin(){
-  const len=Math.max(4,attachmentPin().length);
-  const dots=Array.from({length:len},(_,i)=>i<attachmentPinBuffer.length?'●':'○').join(' ');
-  $('attachmentPinDisplay').textContent=dots;
-  const input=$('attachmentPinInput');
-  if(input&&input.value!==attachmentPinBuffer)input.value=attachmentPinBuffer;
-}
-function focusAttachmentPinInput(){
-  const input=$('attachmentPinInput');
-  if(!input)return;
-  input.focus({preventScroll:true});
-  try{input.setSelectionRange(input.value.length,input.value.length)}catch{}
-}
-function openAttachmentPinDialog(){
-  attachmentPinBuffer='';renderAttachmentPin();
-  $('attachmentPinMessage').textContent='พิมพ์ตัวเลขจากคีย์บอร์ด หรือกดปุ่มด้านล่าง';
-  attachmentPinDialog.showModal();
-  setTimeout(focusAttachmentPinInput,80);
-}
-function closeAttachmentPinDialog(){attachmentPinDialog.close();attachmentPinBuffer=''}
-function pinKey(n){
-  if(attachmentPinBuffer.length>=6)return;
-  attachmentPinBuffer+=String(n).replace(/\D/g,'');renderAttachmentPin();
-  if(attachmentPinBuffer.length===attachmentPin().length)setTimeout(submitAttachmentPin,120);
-}
-function pinClear(){attachmentPinBuffer='';renderAttachmentPin();$('attachmentPinMessage').textContent='กรอกรหัสใหม่';focusAttachmentPinInput()}
-function submitAttachmentPin(){
-  if(attachmentPinBuffer!==attachmentPin()){
-    attachmentPinBuffer='';renderAttachmentPin();
-    $('attachmentPinMessage').textContent='รหัสไม่ถูกต้อง กรุณาลองใหม่';
-    focusAttachmentPinInput();
-    return;
-  }
-  closeAttachmentPinDialog();attachmentVaultDialog.showModal();loadAttachmentVault();
-}
-function changeAttachmentPin(){
-  const current=prompt('กรอกรหัสปัจจุบัน');
-  if(current===null)return;
-  if(current!==attachmentPin())return alert('รหัสปัจจุบันไม่ถูกต้อง');
-  const next=prompt('ตั้งรหัสตัวเลขใหม่ 4–6 หลัก');
-  if(next===null)return;
-  if(!/^\d{4,6}$/.test(next))return alert('รหัสต้องเป็นตัวเลข 4–6 หลัก');
-  const confirmPin=prompt('กรอกรหัสใหม่อีกครั้ง');
-  if(confirmPin!==next)return alert('รหัสยืนยันไม่ตรงกัน');
-  appSettings.attachmentPin=next;queueCloudSave();alert('เปลี่ยนรหัสเข้าคลังไฟล์แล้ว');
-}
-function attachmentFileIcon(file){
-  const type=String(file.mimetype||'');
-  if(type.startsWith('image/'))return '🖼️';
-  if(type.includes('pdf'))return '📄';
-  return '📎';
-}
-function dataUrlMime(dataUrl=''){
-  const m=String(dataUrl).match(/^data:([^;,]+)/i);
-  return m?.[1]||'application/octet-stream';
-}
-function collectEmbeddedAttachments(){
-  const files=[];
-  attachmentVaultEmbedded=new Map();
-  const add=(dataUrl,name,createdAt,source)=>{
-    if(typeof dataUrl!=='string'||!dataUrl.startsWith('data:'))return;
-    const id='embedded-'+crypto.randomUUID();
-    attachmentVaultEmbedded.set(id,dataUrl);
-    files.push({id,kind:'embedded',path:name,bucket:'ข้อมูลในรายการ',createdAt:createdAt||'',size:dataUrlBytes(dataUrl),mimetype:dataUrlMime(dataUrl),source});
-  };
-  entries.forEach((e,ei)=>(e.images||[]).forEach((img,ii)=>add(img,`${e.merchant||'รายการ'}-${e.date||ei+1}-${ii+1}.jpg`,e.createdAt||e.date,`รายรับรายจ่าย · ${e.merchant||'ไม่ระบุชื่อ'}`)));
-  projects.forEach((p,pi)=>(p.expenses||[]).forEach((e,ei)=>(e.images||[]).forEach((img,ii)=>add(img,`${p.name||'โปรเจกต์'}-${e.name||'ค่าใช้จ่าย'}-${ii+1}.jpg`,e.createdAt||e.date,`โปรเจกต์ · ${p.name||pi+1}`))));
-  Object.entries(profiles||{}).forEach(([key,profile])=>add(profile?.photo,`รูปโปรไฟล์-${profile?.name||key}.jpg`,'',`รูปโปรไฟล์ · ${profile?.name||key}`));
-  return files;
-}
-function renderAttachmentVault(){
-  const q=($('attachmentVaultSearch')?.value||'').trim().toLowerCase();
-  const sort=$('attachmentVaultSort')?.value||'newest';
-  let files=attachmentVaultFiles.filter(f=>!q||`${f.path||''} ${f.source||''}`.toLowerCase().includes(q));
-  files=[...files].sort((a,b)=>sort==='oldest'?new Date(a.createdAt||0)-new Date(b.createdAt||0):sort==='largest'?Number(b.size||0)-Number(a.size||0):sort==='smallest'?Number(a.size||0)-Number(b.size||0):new Date(b.createdAt||0)-new Date(a.createdAt||0));
-  const total=files.reduce((sum,f)=>sum+Number(f.size||0),0);
-  $('attachmentVaultSummary').textContent=`แสดง ${files.length.toLocaleString('th-TH')} ไฟล์ · รวม ${formatBytes(total)}`;
-  $('attachmentVaultList').innerHTML=files.length?files.map(f=>{
-    const openAction=f.kind==='embedded'?`openEmbeddedAttachment('${f.id}')`:`openAttachmentFile('${encodeURIComponent(f.bucket||'receipts')}','${encodeURIComponent(f.path||'')}')`;
-    return `<div class="attachment-view-row"><div class="attachment-thumb" style="display:grid;place-items:center;font-size:24px">${attachmentFileIcon(f)}</div><div><strong>${escapeHtml((f.path||'').split('/').pop()||'ไฟล์แนบ')}</strong><div class="muted">${escapeHtml(f.source||f.bucket||'receipts')} · ${f.createdAt?new Date(f.createdAt).toLocaleString('th-TH'):'ไม่ทราบวันที่'}</div><div class="muted">${formatBytes(f.size)}${f.mimetype?' · '+escapeHtml(f.mimetype):''}</div></div><div class="actions"><button class="btn btn-light" onclick="${openAction}">เปิดดู</button></div></div>`;
-  }).join(''):'<div class="empty">ไม่พบไฟล์แนบ</div>';
-}
-async function loadAttachmentVault(){
-  $('attachmentVaultList').innerHTML='<div class="empty">กำลังโหลดไฟล์แนบทั้งหมด...</div>';
-  $('attachmentVaultSummary').textContent='';
-  const embedded=collectEmbeddedAttachments();
-  let cloud=[];
-  let cloudError='';
-  try{
-    const res=await fetch('/api/storage/files?bucket=receipts&olderThanDays=0&limit=1000',{cache:'no-store'});
-    const data=await res.json();if(!res.ok)throw new Error(data.error||'โหลดไฟล์ใน Storage ไม่สำเร็จ');
-    cloud=(data.files||[]).map(f=>({...f,kind:'storage',source:`Storage · ${f.bucket||'receipts'}`}));
-  }catch(err){cloudError=err.message||'โหลดไฟล์ใน Storage ไม่สำเร็จ'}
-  attachmentVaultFiles=[...embedded,...cloud];
-  renderAttachmentVault();
-  if(cloudError){
-    const notice=document.createElement('div');
-    notice.className='notice';
-    notice.style.marginBottom='10px';
-    notice.textContent=`แสดงไฟล์ที่แนบอยู่ในรายการแล้ว แต่โหลดไฟล์จาก Storage ไม่สำเร็จ: ${cloudError}`;
-    $('attachmentVaultList').prepend(notice);
-  }
-}
-function openEmbeddedAttachment(id){
-  const dataUrl=attachmentVaultEmbedded.get(id);
-  if(!dataUrl)return alert('ไม่พบข้อมูลไฟล์แนบ');
-  const w=window.open('','_blank');
-  if(!w)return alert('เบราว์เซอร์บล็อกหน้าต่างใหม่ กรุณาอนุญาต Pop-up');
-  if(dataUrlMime(dataUrl).startsWith('image/')){
-    w.document.write(`<title>ไฟล์แนบ</title><style>body{margin:0;background:#111;display:grid;place-items:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style><img src="${dataUrl}">`);
-    w.document.close();
-  }else w.location.href=dataUrl;
-}
-async function openAttachmentFile(bucket,path){
-  try{
-    const res=await fetch(`/api/storage/url?bucket=${bucket}&path=${path}`,{cache:'no-store'});
-    const data=await res.json();if(!res.ok)throw new Error(data.error||'เปิดไฟล์ไม่สำเร็จ');
-    window.open(data.url,'_blank','noopener,noreferrer');
-  }catch(err){alert(err.message)}
-}
-$('openAttachmentVaultBtn')?.addEventListener('click',openAttachmentPinDialog);
-$('changeAttachmentPinBtn')?.addEventListener('click',changeAttachmentPin);
-$('refreshAttachmentVaultBtn')?.addEventListener('click',loadAttachmentVault);
-$('attachmentVaultSearch')?.addEventListener('input',renderAttachmentVault);
-$('attachmentVaultSort')?.addEventListener('change',renderAttachmentVault);
-$('attachmentPinInput')?.addEventListener('input',e=>{
-  attachmentPinBuffer=String(e.target.value||'').replace(/\D/g,'').slice(0,6);
-  renderAttachmentPin();
-  if(attachmentPinBuffer.length===attachmentPin().length)setTimeout(submitAttachmentPin,120);
-});
-$('attachmentPinDialog')?.addEventListener('click',focusAttachmentPinInput);
-window.addEventListener('keydown',e=>{
-  if(!$('attachmentPinDialog')?.open)return;
-  if(/^\d$/.test(e.key)){e.preventDefault();pinKey(e.key)}
-  else if(e.code?.startsWith('Numpad')&&/^\d$/.test(e.code.slice(6))){e.preventDefault();pinKey(e.code.slice(6))}
-  else if(e.key==='Backspace'||e.key==='Delete'){e.preventDefault();attachmentPinBuffer=attachmentPinBuffer.slice(0,-1);renderAttachmentPin()}
-  else if(e.key==='Enter'){e.preventDefault();submitAttachmentPin()}
-  else if(e.key==='Escape')closeAttachmentPinDialog();
-},true);
 function formatBytes(bytes){
   const n=Number(bytes||0);
   if(n<1024)return n.toLocaleString('th-TH')+' B';
@@ -2458,31 +2032,13 @@ function openNotificationCenter(){renderNotificationCenter();notificationCenterD
 function renderNotificationCenter(){$('notificationCenterList').innerHTML=appNotifications.length?appNotifications.map(n=>`<div class="list-row"><div><strong>${escapeHtml(n.title)}</strong><div class="muted">${n.date||''} · ${new Date(n.createdAt).toLocaleString('th-TH')}</div></div>${n.read?'<span class="badge">อ่านแล้ว</span>':`<button class="btn btn-light" onclick="markNotificationRead('${n.id}')">อ่านแล้ว</button>`}</div>`).join(''):'<div class="empty">ไม่มีการแจ้งเตือน</div>'}
 function markNotificationRead(id){const n=appNotifications.find(x=>x.id===id);if(n)n.read=true;queueCloudSave();renderNotificationCenter();updateNotificationBadge()}
 function markAllNotificationsRead(){appNotifications.forEach(n=>n.read=true);queueCloudSave();renderNotificationCenter();updateNotificationBadge()}
-$('payment')?.addEventListener('change',updateEntryCardVisibility);
-$('type')?.addEventListener('change',updateEntryCardVisibility);
-$('entryCardId')?.addEventListener('change',updateEntryCardVisibility);
-$('payer')?.addEventListener('change',()=>{const owner=$('payer').value;const matching=creditCards.filter(c=>c.owner===owner);$('entryCardId').innerHTML='<option value="">กรุณาเลือกบัตร</option>'+matching.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');updateEntryCardVisibility()});
 document.querySelectorAll('[data-cal-filter]').forEach(b=>b.onclick=()=>{calendarFilter=b.dataset.calFilter;document.querySelectorAll('[data-cal-filter]').forEach(x=>x.classList.toggle('active',x===b));renderCalendar()});
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(console.error);
 setInterval(checkDueCalendarReminders,60*60*1000);
 setTimeout(checkDueCalendarReminders,2500);
 
-function renderAll(){
-  renderDashboard();renderHistory();renderSettle();renderCards();renderNotifications();updateNotificationBadge();applyDashboardSettings();
-  if(!$('projects').classList.contains('hidden'))renderProjects();
-  if(!$('calendar').classList.contains('hidden'))renderCalendar();
-  if(!$('budget').classList.contains('hidden'))renderBudgets();
-  if(!$('recurring').classList.contains('hidden'))renderRecurring();
-}
-bootstrapCloudState().catch(err=>{
-  console.error(err);
-  cloudReady=false;
-  setCloudStatus('ใช้ข้อมูลชั่วคราว — Cloud ยังไม่พร้อม','error');
-  refreshProfilesUI();refreshCategories();applyDashboardSettings();renderAll();
-  if(validProfileKey(activeUser)) $('loginScreen')?.classList.add('hidden');
-  else showProfileChooser();
-  showToast('เชื่อมต่อ Cloud ไม่สำเร็จ แต่ยังเปิดแอปด้วยข้อมูลชั่วคราวได้');
-});
+function renderAll(){renderDashboard();renderHistory();renderSettle();renderProjects();renderCalendar();renderBudgets();renderRecurring();renderCards();renderNotifications();updateNotificationBadge();applyDashboardSettings();}
+bootstrapCloudState().catch(err=>{console.error(err);setCloudStatus('โหลด Cloud ไม่สำเร็จ','error');alert('ไม่สามารถโหลดข้อมูลจาก Cloud ได้ กรุณาตรวจสอบการติดตั้ง SQL และการเชื่อมต่อ Supabase');});
 </script>
 
 </body>

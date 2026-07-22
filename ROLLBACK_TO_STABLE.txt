@@ -1,0 +1,30 @@
+Harmony Haven — Stable Rollback
+Base version: harmony-haven-calendar-tasks-reminders
+
+วิธีติดตั้ง
+1. สำรองโปรเจกต์ปัจจุบันหรือสร้าง Git commit ก่อน
+2. คัดลอก public/app.html และ public/sw.js จากชุดนี้ไปทับไฟล์เดิม
+3. ไม่ต้องลบข้อมูลใน Supabase
+4. หากเคยรัน SQL 003 และ 004 แล้ว ไม่ต้องรันซ้ำ
+5. ไม่ต้องย้อนหรือลบ SQL 005 เพราะตาราง/นโยบายที่เพิ่มไว้ไม่ขัดกับแอปเวอร์ชันนี้
+6. Deploy ใหม่บน Vercel โดยเลือก Clear build cache
+7. หลัง Deploy ให้กด Ctrl+F5 บนคอม หรือถอน/ติดตั้ง PWA ใหม่หากยังเห็นหน้าจอเก่า
+
+สิ่งที่คงอยู่ในเวอร์ชันนี้
+- Cloud household state
+- Calendar
+- Tasks
+- Reminders
+- Notification center / badge / toast
+- PWA service worker
+
+สิ่งที่ถูกถอดออกจากชุด Hotfix ภายหลัง
+- Credit card linking รุ่นใหม่
+- Attachment vault และ PIN
+- ระบบสำรองจ่าย
+- ตัวกรองรายการย้อนหลังรุ่นใหม่
+- Profile image บน Dashboard
+- Login stability patch รุ่นหลัง
+
+หมายเหตุ
+ชุดนี้คือการถอยกลับไปยังฐานที่ผู้ใช้ยืนยันว่าเคยทำงานได้ ไม่ได้รวมฟีเจอร์ที่เพิ่มหลังจากนั้น
