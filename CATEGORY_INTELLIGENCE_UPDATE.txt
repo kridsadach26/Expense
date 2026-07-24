@@ -1,0 +1,31 @@
+รายละเอียดทางเทคนิค — Category Intelligence v2.1.0
+=================================================
+
+ข้อมูลใหม่ใน Cloud State
+- categoryCatalog: โครงสร้างหมวด 3 ระดับ
+- tagLibrary: รายการ Tag ที่ผู้ใช้สร้างหรือระบบเรียนรู้
+- merchantCategoryMemory: ความจำชื่อร้านค้า → หมวดและ Tag
+
+ข้อมูลใหม่ในรายการ
+- category: หมวดหลัก เพื่อรองรับรายงานเดิม
+- subcategory: หมวดย่อย
+- detailCategory: ระดับ 3
+- categoryPath: Array ของชื่อหมวดตามลำดับ
+- tags: Array ของ Tag
+
+การคำนวณงบ
+- ถ้าตั้งงบที่หมวดหลัก ระบบรวมรายการใต้หมวดย่อยทั้งหมด
+- ถ้าตั้งงบที่หมวดย่อย ระบบรวมรายการภายใต้หมวดย่อยนั้น
+- ถ้าตั้งงบระดับ 3 ระบบนับเฉพาะรายละเอียดนั้น
+
+Backward Compatibility
+- entryCategoryPath() แปลงข้อมูลเก่า category ให้เป็น path อัตโนมัติ
+- normalizeCategoryCatalog() เติมหมวดเดิมของผู้ใช้เข้าสู่ Catalog ใหม่
+- Backup/Restore version 3 รวม Calendar, Notification, Catalog, Tag และ Merchant Memory
+
+ไฟล์ที่แก้
+- public/app.html
+- public/assets/harmony-app-v2.js
+
+SQL
+- ไม่มี Migration ใหม่

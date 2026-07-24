@@ -117,7 +117,31 @@
     .switch input:checked + .slider{background:var(--orange)}
     .switch input:checked + .slider:before{transform:translateX(20px)}
     .tag-list{display:flex;flex-wrap:wrap;gap:8px}
-    .tag{display:flex;align-items:center;gap:6px;background:#f2f3f6;border-radius:999px;padding:7px 10px}
+    .tag{display:inline-flex;align-items:center;gap:6px;background:#f2f3f6;border-radius:999px;padding:7px 10px;border:0}
+    .tag-delete{border:0;background:transparent;color:#9b4f1b;font-size:16px;line-height:1;cursor:pointer;padding:0 2px}
+    .quick-tag{cursor:pointer;font:inherit;color:#87501f}
+    .category-picker-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+    .category-picker-grid>div{min-width:0}
+    .category-picker-grid select{min-width:0;width:100%}
+    .category-picker-level{display:block;font-size:12px;color:#777;margin:0 0 4px 2px}
+    .category-path-preview{margin-top:7px;padding:8px 10px;background:#fff8ef;border:1px solid #ffd5a8;border-radius:10px;color:#8b531f}
+    .smart-category-hint{min-height:22px;margin-top:6px;color:#725b45}
+    .smart-category-ok{color:#2e7d5b}
+    .smart-category-apply{border:0;border-radius:999px;background:#fff0dd;color:#9b5515;padding:4px 9px;font:inherit;font-weight:700;cursor:pointer}
+    .history-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+    .history-tags span{font-size:12px;background:#f3f4f7;border-radius:999px;padding:2px 7px;color:#666}
+    .category-manager-help{margin-bottom:12px}
+    .category-tree-main{border:1px solid #eceef2;border-radius:14px;background:#fff;margin-bottom:10px;overflow:hidden}
+    .category-tree-main summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;cursor:pointer;list-style:none}
+    .category-tree-main summary::-webkit-details-marker{display:none}
+    .category-tree-children{padding:0 14px 12px}
+    .category-tree-sub{border-top:1px solid #f0f1f4;padding:10px 0}
+    .category-tree-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .category-tree-details{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0 20px}
+    .category-tree-delete{border:0;background:#fff1ee;color:#b54933;border-radius:999px;padding:5px 9px;cursor:pointer}
+    .category-builder{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
+    .category-builder.three{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
+    .category-memory-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #eee}
     .future-item{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
     .future-item:last-child{border-bottom:0}
 
@@ -325,6 +349,8 @@
     @media(max-width:560px){
       #projectExpenseDialog{width:100%;max-width:none;max-height:100dvh;border-radius:18px 18px 0 0;margin:auto 0 0}
       #projectExpenseDialog .dialog-body{max-height:calc(100dvh - 66px);padding:12px}
+      .category-picker-grid{grid-template-columns:1fr}
+      .category-builder,.category-builder.three{grid-template-columns:1fr}
       .project-expense-grid{grid-template-columns:1fr}
       .project-participant-grid{grid-template-columns:1fr 1fr}
       .project-expense-summary{grid-template-columns:1fr 1fr 1fr}
@@ -465,13 +491,25 @@
             </div>
             <div id="entryRateHint" class="muted" style="margin-top:5px"></div>
           </div>
-          <div>
-            <label>หมวดหมู่</label>
-            <select id="category"></select>
-          </div>
-          <div>
+          <div class="full">
             <label>ร้านค้า / รายการ</label>
-            <input id="merchant" placeholder="เช่น Lotus's หรือ ค่าไฟ" required />
+            <input id="merchant" placeholder="เช่น Lotus's, Café Amazon หรือ ค่าไฟ" required />
+            <div id="merchantCategoryHint" class="smart-category-hint"></div>
+          </div>
+          <div class="full">
+            <label>หมวดหมู่แบบละเอียด</label>
+            <div class="category-picker-grid">
+              <div><span class="category-picker-level">หมวดหลัก</span><select id="entryCategoryMain" aria-label="หมวดหลัก"></select></div>
+              <div><span class="category-picker-level">หมวดย่อย</span><select id="entryCategorySub" aria-label="หมวดย่อย"></select></div>
+              <div><span class="category-picker-level">รายละเอียด</span><select id="entryCategoryDetail" aria-label="รายละเอียดหมวด"></select></div>
+            </div>
+            <div id="entryCategoryPathPreview" class="category-path-preview">ยังไม่ได้เลือกหมวดหมู่</div>
+          </div>
+          <div class="full">
+            <label>แท็ก <span class="muted">(ไม่บังคับ ใช้ค้นหาและวิเคราะห์ข้ามหมวด)</span></label>
+            <input id="entryTags" list="entryTagSuggestions" placeholder="เช่น ทริปเชียงใหม่, ลูกค้า, รายเดือน">
+            <datalist id="entryTagSuggestions"></datalist>
+            <div id="entryTagQuick" class="tag-list" style="margin-top:8px"></div>
           </div>
           <div>
             <label>ผู้จ่ายเงินจริง</label>
@@ -525,7 +563,7 @@
       <div class="section-title"><h2>รายการย้อนหลัง</h2></div>
       <div class="card">
         <div class="toolbar">
-          <input id="search" placeholder="ค้นหาร้านค้า หมวดหมู่ หรือหมายเหตุ" />
+          <input id="search" placeholder="ค้นหาร้านค้า หมวดหมู่ แท็ก หรือหมายเหตุ" />
           <select id="filterType"><option value="">ทุกประเภท</option><option value="expense">รายจ่าย</option><option value="income">รายรับ</option></select>
           <select id="historyPeriodPreset">
             <option value="all">ทุกช่วงเวลา</option>
@@ -638,7 +676,7 @@
       <div class="section-title"><h2>งบประมาณรายเดือน</h2></div>
       <div class="card">
         <div class="form-inline">
-          <div><label>หมวดหมู่</label><select id="budgetCategory"></select></div>
+          <div><label>หมวดงบประมาณ</label><select id="budgetCategory"></select><div class="muted" style="margin-top:5px">เลือกได้ถึงระดับย่อย เช่น รถยนต์ › เชื้อเพลิง</div></div>
           <div><label>งบต่อเดือน</label><input id="budgetAmount" type="number" min="0" step="1" placeholder="0"></div>
           <div><label>เตือนเมื่อใช้ถึง</label><select id="budgetAlert"><option value="80">80%</option><option value="90">90%</option><option value="100">100%</option></select></div>
           <button id="addBudgetBtn" class="btn btn-primary">บันทึกงบ</button>
@@ -655,7 +693,7 @@
           <div><label>ชื่อรายการ</label><input id="recurringName" placeholder="เช่น ค่าไฟ"></div>
           <div><label>จำนวนเงินโดยประมาณ</label><input id="recurringAmount" type="number" min="0"></div>
           <div><label>วันที่ครบกำหนดทุกเดือน</label><input id="recurringDay" type="number" min="1" max="31" value="1"></div>
-          <div><label>หมวดหมู่</label><select id="recurringCategory"></select></div>
+          <div><label>หมวดหมู่แบบละเอียด</label><select id="recurringCategory"></select></div>
         </div>
         <div class="form-inline" style="margin-top:10px">
           <div><label>ผู้จ่าย</label><select id="recurringPayer"></select></div>
@@ -726,12 +764,44 @@
         </div>
 
         <div class="setting-card">
-          <h3 style="margin-top:0">หมวดหมู่</h3>
-          <div id="categoryTags" class="tag-list"></div>
-          <div style="display:flex;gap:8px;margin-top:12px">
-            <input id="newCategory" placeholder="ชื่อหมวดหมู่ใหม่">
-            <button id="addCategoryBtn" class="btn btn-light">เพิ่ม</button>
+          <h3 style="margin-top:0">หมวดหมู่แบบละเอียด</h3>
+          <div class="muted category-manager-help">รองรับ 3 ระดับ: หมวดหลัก › หมวดย่อย › รายละเอียด รายการเก่ายังใช้งานได้เหมือนเดิม และงบประมาณจะยังอ้างอิงหมวดหลักเพื่อให้สรุปไม่ซับซ้อนเกินไป</div>
+          <div id="categoryManagerTree"></div>
+
+          <h4>เพิ่มหมวดหลัก</h4>
+          <div class="category-builder">
+            <input id="newMainCategory" placeholder="เช่น สัตว์เลี้ยง">
+            <button id="addMainCategoryBtn" class="btn btn-light" type="button">เพิ่มหมวดหลัก</button>
           </div>
+
+          <h4>เพิ่มหมวดย่อย</h4>
+          <div class="category-builder three">
+            <select id="categoryParentMain"></select>
+            <input id="newSubCategory" placeholder="เช่น อาหารสัตว์">
+            <button id="addSubCategoryBtn" class="btn btn-light" type="button">เพิ่มหมวดย่อย</button>
+          </div>
+
+          <h4>เพิ่มรายละเอียดระดับ 3</h4>
+          <div class="category-builder three">
+            <select id="categoryParentSub"></select>
+            <input id="newDetailCategory" placeholder="เช่น อาหารแมว">
+            <button id="addDetailCategoryBtn" class="btn btn-light" type="button">เพิ่มรายละเอียด</button>
+          </div>
+        </div>
+
+        <div class="setting-card">
+          <h3 style="margin-top:0">แท็กและการจำร้านค้า</h3>
+          <div class="muted">แท็กใช้วิเคราะห์รายการข้ามหมวด เช่น #ทริปเชียงใหม่ #ลูกค้า #รายเดือน ระบบจะจำหมวดและแท็กของร้านค้าที่บันทึกไว้ เพื่อช่วยกรอกครั้งต่อไป</div>
+          <div id="tagLibraryTags" class="tag-list" style="margin-top:12px"></div>
+          <div class="category-builder">
+            <input id="newTag" placeholder="ชื่อแท็กใหม่">
+            <button id="addTagBtn" class="btn btn-light" type="button">เพิ่มแท็ก</button>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:18px">
+            <h4 style="margin:0">ร้านค้าที่ระบบจำไว้</h4>
+            <button id="clearMerchantMemoryBtn" class="btn btn-light" type="button">ล้างความจำทั้งหมด</button>
+          </div>
+          <div id="merchantMemoryList" style="margin-top:8px"></div>
         </div>
 
         <div class="setting-card">
@@ -882,7 +952,22 @@
       <div class="project-expense-grid">
         <div><label>วันที่</label><input id="projectExpenseDate" type="date"></div>
         <div><label>จำนวนเงิน</label><input id="projectExpenseAmount" type="number" min="0" step="0.01" inputmode="decimal"></div>
-        <div class="full"><label>รายการ</label><input id="projectExpenseName" placeholder="เช่น โรงแรม ค่าอาหาร ค่าน้ำมัน"></div>
+        <div class="full"><label>รายการ</label><input id="projectExpenseName" placeholder="เช่น โรงแรม ค่าอาหาร ค่าน้ำมัน"><div id="projectMerchantCategoryHint" class="smart-category-hint"></div></div>
+        <div class="full">
+          <label>หมวดหมู่แบบละเอียด</label>
+          <div class="category-picker-grid">
+            <div><span class="category-picker-level">หมวดหลัก</span><select id="projectExpenseCategoryMain" aria-label="หมวดหลัก"></select></div>
+            <div><span class="category-picker-level">หมวดย่อย</span><select id="projectExpenseCategorySub" aria-label="หมวดย่อย"></select></div>
+            <div><span class="category-picker-level">รายละเอียด</span><select id="projectExpenseCategoryDetail" aria-label="รายละเอียดหมวด"></select></div>
+          </div>
+          <div id="projectExpenseCategoryPathPreview" class="category-path-preview">ยังไม่ได้เลือกหมวดหมู่</div>
+        </div>
+        <div class="full">
+          <label>แท็ก <span class="muted">(ไม่บังคับ)</span></label>
+          <input id="projectExpenseTags" list="projectTagSuggestions" placeholder="เช่น ทริปเชียงใหม่, อาหารทีม, ลูกค้า">
+          <datalist id="projectTagSuggestions"></datalist>
+          <div id="projectTagQuick" class="tag-list" style="margin-top:8px"></div>
+        </div>
         <div><label>สกุลเงินที่จ่าย</label><select id="projectExpenseCurrency"></select></div>
         <div>
           <label>เรทเป็นสกุลหลักของโปรเจกต์</label>
@@ -980,7 +1065,7 @@
     <div><label>ประเภท</label><select id="calendarType"><option value="bill">ค่าใช้จ่าย/บิล</option><option value="task">งาน</option><option value="event">กิจกรรม</option></select></div>
     <div><label>ความสำคัญ</label><select id="calendarPriority"><option value="normal">ปกติ</option><option value="high">สำคัญ</option><option value="urgent">เร่งด่วน</option></select></div>
     <div><label>วันที่</label><input id="calendarDate" type="date" required></div><div><label>เวลา</label><input id="calendarTime" type="time"></div>
-    <div><label>จำนวนเงิน</label><input id="calendarAmount" type="number" min="0" step="0.01" placeholder="ไม่บังคับ"></div><div><label>หมวดหมู่</label><select id="calendarCategory"></select></div>
+    <div><label>จำนวนเงิน</label><input id="calendarAmount" type="number" min="0" step="0.01" placeholder="ไม่บังคับ"></div><div><label>หมวดหมู่แบบละเอียด</label><select id="calendarCategory"></select></div>
     <div><label>ทำซ้ำ</label><select id="calendarRepeat"><option value="none">ไม่ทำซ้ำ</option><option value="daily">ทุกวัน</option><option value="weekly">ทุกสัปดาห์</option><option value="monthly">ทุกเดือน</option><option value="yearly">ทุกปี</option></select></div>
     <div><label>เตือนล่วงหน้า</label><select id="calendarRemind"><option value="0">วันครบกำหนด</option><option value="1">1 วันก่อน</option><option value="3">3 วันก่อน</option><option value="7">7 วันก่อน</option><option value="30">30 วันก่อน</option></select></div>
     <div class="full"><label>แจ้งเตือนใครบ้าง</label><div id="calendarAssignees" class="assignee-checks"></div></div>
@@ -992,6 +1077,6 @@
 <dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="notificationCenterDialog.close()">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
 <div id="toastStack" class="toast-stack"></div>
 
-<script src="/assets/harmony-app-v2.js?v=2.0.0" defer></script>
+<script src="/assets/harmony-app-v2.js?v=2.1.0" defer></script>
 </body>
 </html>

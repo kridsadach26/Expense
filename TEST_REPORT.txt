@@ -1,28 +1,41 @@
-Harmony Haven Stable v2.0.0 - Test Report
+Harmony Haven Stable v2.1.0 — Test Report
+=========================================
 
 Static checks
-- node --check public/assets/harmony-app-v2.js: PASS
-- ตรวจ ID ที่ JavaScript อ้างอิงกับ HTML: PASS
-  (cloudSyncStatus และ runtimeBanner เป็น element แบบ optional/dynamic)
-- ไม่พบการอ้าง filterMonth ที่ถูกลบแล้ว: PASS
-- escapeHtml มีอยู่: PASS
+- JavaScript: node --check ผ่าน
+- HTML duplicate IDs: 0
+- Static JavaScript ID references ที่ไม่พบใน HTML: 0
+- crypto.randomUUID ที่ไม่มี fallback: 0
+- Script cache version: v=2.1.0
 
-Browser smoke tests (Chromium / Playwright, mocked Cloud API)
-- Boot จาก Cloud สำเร็จ: PASS
-- Active profile แสดง Toey: PASS
-- เปิดแท็บ Dashboard: PASS
-- เปิดแท็บเพิ่มรายการ: PASS
-- เปิดแท็บรายการย้อนหลัง: PASS
-- เปิดแท็บยอดค้าง: PASS
-- เปิดแท็บโปรเจกต์: PASS
-- เปิดแท็บปฏิทิน: PASS
-- เปิดแท็บงบประมาณ: PASS
-- เปิดแท็บรายการประจำ: PASS
-- เปิดแท็บบัตรเครดิต: PASS
-- เปิดแท็บตั้งค่า: PASS
-- กรองเดือนปัจจุบัน: PASS
-- รายการเก่าที่ไม่มี splits ไม่ทำให้ระบบล้ม: PASS
-- Calendar ที่มีอักขระ HTML แสดงอย่างปลอดภัย: PASS
-- Cloud API 500 แสดงหน้าลองใหม่โดยไม่เกิด Page Error: PASS
-- Cloud API 401 แสดงข้อความให้กลับ Login โดยไม่ Redirect วน: PASS
-- JavaScript page errors ระหว่าง Smoke Test: 0
+Browser smoke test
+ทดสอบด้วย Headless Chromium และ Mock Cloud API
+
+ผลการทดสอบ
+- Boot Controller เปิด Dashboard สำเร็จ
+- Boot overlay ปิดหลังโหลดสำเร็จ
+- Runtime error banner: ไม่พบ
+- หมวดเริ่มต้น: 15 หมวดหลัก
+- Category Manager แสดงครบ 15 หมวด
+- เลือกหมวด 3 ระดับ: ผ่าน
+  รถยนต์ › ซ่อมบำรุง › ยาง
+- Smart Category: ผ่าน
+  PT Station → รถยนต์ › เชื้อเพลิง + Tag เติมน้ำมัน
+- บันทึกรายการทั่วไป: ผ่าน
+- Merchant Memory: ผ่าน
+- งบประมาณหมวดย่อย: ผ่าน
+  รถยนต์ › เชื้อเพลิง คำนวณยอดที่บันทึกได้ถูกต้อง
+- รายการประจำระดับ 3: ผ่าน
+  รถยนต์ › เชื้อเพลิง › ดีเซล
+- ค่าใช้จ่ายโปรเจกต์ + หมวด + Tag: ผ่าน
+  Café Amazon → เครื่องดื่ม › คาเฟ่ + Tag คาเฟ่
+- ปฏิทินสร้างรายจ่ายพร้อม Category Path: ผ่าน
+  รถยนต์ › เอกสารและประกัน › ประกันรถ
+- เพิ่มหมวดหลัก/หมวดย่อย/ระดับ 3 จาก Settings: ผ่าน
+- Browser runtime exceptions ระหว่างชุดทดสอบสุดท้าย: 0
+
+ข้อแนะนำหลัง Deploy
+- ทดสอบข้อมูลจริง 1 รายการทั่วไป
+- ทดสอบค่าใช้จ่ายโปรเจกต์ 1 รายการ
+- ทดสอบค้นหา Tag ในรายการย้อนหลัง
+- ทดสอบตั้งงบหมวดย่อย 1 รายการ

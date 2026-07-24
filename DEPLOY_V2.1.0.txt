@@ -1,0 +1,18 @@
+Deploy Harmony Haven v2.1.0
+===========================
+
+1. แตก ZIP
+2. คัดลอกไฟล์ทั้งหมดทับโปรเจกต์ปัจจุบัน
+3. Commit และ Push เข้า GitHub หรืออัปผ่านวิธีเดิม
+4. Vercel > Deployments > Redeploy > Clear build cache
+5. ไม่ต้องรัน SQL ใหม่ หากเคยรัน 003 และ 004 แล้ว
+6. เปิดเว็บด้วย Ctrl+F5
+7. PWA: ปิดแอปให้หมดแล้วเปิดใหม่
+
+ไฟล์สำคัญ
+- public/app.html
+- public/assets/harmony-app-v2.js
+
+กรณีต้องย้อนกลับ
+- ใช้ ZIP Stable v2.0.1 ที่สำรองไว้
+- ข้อมูล Cloud ที่เพิ่ม categoryCatalog/tagLibrary/merchantCategoryMemory จะไม่ทำให้ตาราง Supabase เปลี่ยน
