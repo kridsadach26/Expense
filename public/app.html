@@ -952,7 +952,7 @@
       <div class="project-expense-grid">
         <div><label>วันที่</label><input id="projectExpenseDate" type="date"></div>
         <div><label>จำนวนเงิน</label><input id="projectExpenseAmount" type="number" min="0" step="0.01" inputmode="decimal"></div>
-        <div class="full"><label>รายการ</label><input id="projectExpenseName" placeholder="เช่น โรงแรม ค่าอาหาร ค่าน้ำมัน"><div id="projectMerchantCategoryHint" class="smart-category-hint"></div></div>
+        <div class="full"><label>รายการ <span class="muted">(เว้นว่างได้ ระบบใช้ชื่อหมวดแทน)</span></label><input id="projectExpenseName" placeholder="เช่น โรงแรม ค่าอาหาร ค่าน้ำมัน"><div id="projectMerchantCategoryHint" class="smart-category-hint"></div></div>
         <div class="full">
           <label>หมวดหมู่แบบละเอียด</label>
           <div class="category-picker-grid">
@@ -1077,6 +1077,6 @@
 <dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="closeDialogById('notificationCenterDialog')">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
 <div id="toastStack" class="toast-stack"></div>
 
-<script src="/assets/harmony-app-v2.js?v=2.1.1" defer></script>
+<script src="/assets/harmony-app-v2.js?v=2.1.2" defer></script>
 </body>
 </html>

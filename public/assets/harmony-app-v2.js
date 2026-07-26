@@ -296,6 +296,41 @@ async function fetchJsonWithTimeout(url,options={},timeoutMs=15000){
     return {res,data};
   }finally{clearTimeout(timer)}
 }
+const CLOUD_CACHE_DB='harmony-haven-cache';
+const CLOUD_CACHE_STORE='state';
+const CLOUD_CACHE_KEY='latest';
+function openCloudCacheDb(){
+  return new Promise((resolve,reject)=>{
+    if(!('indexedDB' in window))return resolve(null);
+    const req=indexedDB.open(CLOUD_CACHE_DB,1);
+    req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(CLOUD_CACHE_STORE))req.result.createObjectStore(CLOUD_CACHE_STORE)};
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+async function readCloudCache(){
+  try{
+    const db=await openCloudCacheDb(); if(!db)return null;
+    return await new Promise((resolve,reject)=>{
+      const tx=db.transaction(CLOUD_CACHE_STORE,'readonly');
+      const req=tx.objectStore(CLOUD_CACHE_STORE).get(CLOUD_CACHE_KEY);
+      req.onsuccess=()=>resolve(req.result||null); req.onerror=()=>reject(req.error);
+    });
+  }catch(err){console.warn('อ่าน Cloud cache ไม่สำเร็จ',err);return null}
+}
+async function writeCloudCache(state){
+  try{
+    const db=await openCloudCacheDb(); if(!db)return;
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction(CLOUD_CACHE_STORE,'readwrite');
+      tx.objectStore(CLOUD_CACHE_STORE).put({state,savedAt:Date.now()},CLOUD_CACHE_KEY);
+      tx.oncomplete=()=>resolve(); tx.onerror=()=>reject(tx.error);
+    });
+  }catch(err){console.warn('บันทึก Cloud cache ไม่สำเร็จ',err)}
+}
+function renderLoadedState(){
+  initializeStaticUI();refreshProfilesUI();refreshCategories();applyDashboardSettings();renderAll();
+}
 function cloudStateSnapshot(){
   return {schemaVersion:3,entries,appSettings,profiles,categories,categoryCatalog,tagLibrary,merchantCategoryMemory,budgets,recurringItems,creditCards,projects,calendarItems,appNotifications};
 }
@@ -327,7 +362,7 @@ async function saveCloudState(){
   try{
     const {res,data}=await fetchJsonWithTimeout('/api/cloud/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:cloudStateSnapshot()})});
     if(!res.ok)throw Object.assign(new Error(data.error||'บันทึกไม่สำเร็จ'),{status:res.status});
-    clearLegacyCloudData();setCloudStatus('บันทึกบน Cloud แล้ว','ok');
+    clearLegacyCloudData();writeCloudCache(cloudStateSnapshot());setCloudStatus('บันทึกบน Cloud แล้ว','ok');
   }catch(err){
     console.error(err);setCloudStatus('Cloud มีปัญหา','error');
     reportRuntimeError(err.name==='AbortError'?'บันทึก Cloud ใช้เวลานานเกินไป ระบบจะลองใหม่เมื่อมีการเปลี่ยนแปลง':'บันทึก Cloud ไม่สำเร็จ: '+err.message,err);
@@ -344,35 +379,43 @@ function queueCloudSave(){
 async function bootstrapCloudState(){
   if(appLifecycle.booting)return;
   appLifecycle.booting=true;appLifecycle.bootAttempts+=1;
-  setBootState('กำลังเปิด Harmony Haven','กำลังตรวจสอบผู้ใช้และโหลดข้อมูลจาก Cloud…');
+  setBootState('กำลังเปิด Harmony Haven','กำลังเตรียมข้อมูล…');
   setCloudStatus('กำลังโหลด Cloud…','syncing');
   const legacy=cloudStateSnapshot();
+  let cacheRendered=false;
   try{
-    const {res,data}=await fetchJsonWithTimeout('/api/cloud/state',{cache:'no-store'});
+    const cached=await Promise.race([readCloudCache(),new Promise(resolve=>setTimeout(()=>resolve(null),1200))]);
+    if(cached?.state){
+      applyCloudState(cached.state);
+      const cachedProfile=activeUser||Object.keys(profiles||{})[0];
+      if(cachedProfile)persistActiveUser(cachedProfile);
+      cloudReady=true;renderLoadedState();finishBoot();cacheRendered=true;
+      setCloudStatus('กำลังตรวจข้อมูลล่าสุด…','syncing');
+    }
+    const {res,data}=await fetchJsonWithTimeout('/api/cloud/state',{cache:'no-store'},12000);
     if(res.status===401||res.status===403){
-      redirectToLogin(data.error||'เซสชันหมดอายุ');
-      appLifecycle.booting=false;
-      return;
+      if(!cacheRendered){redirectToLogin(data.error||'เซสชันหมดอายุ');appLifecycle.booting=false;return;}
+      setCloudStatus('ใช้งานข้อมูลแคชชั่วคราว','error');appLifecycle.booting=false;return;
     }
     if(!res.ok)throw new Error(data.error||'โหลด Cloud ไม่สำเร็จ');
-    if(data.exists)applyCloudState(data.state||{});
-    else{applyCloudState(legacy);cloudReady=true;}
-
-    const profileName=data.activeProfile?.name||activeUser;
-    if(!profileName){redirectToLogin('ไม่พบโปรไฟล์ที่กำลังใช้งาน');appLifecycle.booting=false;return;}
-    persistActiveUser(profileName);
+    if(data.exists)applyCloudState(data.state||{}); else applyCloudState(legacy);
+    const profileName=data.activeProfile?.name||activeUser||Object.keys(profiles||{})[0];
+    if(!profileName){if(!cacheRendered){redirectToLogin('ไม่พบโปรไฟล์ที่กำลังใช้งาน');appLifecycle.booting=false;return;}}
+    else persistActiveUser(profileName);
     cloudReady=true;clearLegacyCloudData();
-    initializeStaticUI();
-    refreshProfilesUI();refreshCategories();applyDashboardSettings();renderAll();
-    if(!data.exists)await saveCloudState();
+    renderLoadedState();
+    writeCloudCache(cloudStateSnapshot());
     setCloudStatus('ข้อมูล Cloud ล่าสุด','ok');
     const page=initialParams.get('page');if(page&&$(page))showPage(page,{updateUrl:false});
     const clean=new URL(location.href);clean.searchParams.delete('user');history.replaceState({},'',clean.pathname+clean.search);
-    finishBoot();
+    if(!cacheRendered)finishBoot();
+    appLifecycle.booting=false;
+    if(!data.exists)queueCloudSave();
   }catch(err){
     appLifecycle.lastError=err;appLifecycle.booting=false;
-    const msg=err.name==='AbortError'?'Cloud ตอบสนองช้าเกินไป กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่':err.message;
-    setCloudStatus('โหลด Cloud ไม่สำเร็จ','error');
+    const msg=err.name==='AbortError'?'Cloud ตอบสนองช้า ระบบเปิดจากข้อมูลล่าสุดในเครื่องให้ก่อน':err.message;
+    setCloudStatus(cacheRendered?'ใช้งานข้อมูลแคชชั่วคราว':'โหลด Cloud ไม่สำเร็จ','error');
+    if(cacheRendered){reportRuntimeError(msg,err);return;}
     setBootState('เปิดระบบไม่สำเร็จ',msg,{error:true,showActions:true});
     console.error(err);
   }
@@ -1334,37 +1377,62 @@ $('projectExpenseCamera')?.addEventListener('change',async e=>{
   await addProjectExpenseImages(e.target.files);
   e.target.value='';
 });
-function saveProjectExpense(){
-  const p=projectById(),amount=Number($('projectExpenseAmount').value),name=$('projectExpenseName').value.trim();
-  if(!projectExpenseImagesData.length)return alert('กรุณาแนบรูปบิลหรือหลักฐานอย่างน้อย 1 รูป');
-  const participantIds=[...document.querySelectorAll('.project-participant:checked')].map(x=>x.value);
-  if(!name||!amount||!participantIds.length)return alert('กรอกข้อมูลและเลือกผู้ร่วมหารอย่างน้อย 1 คน');
+async function saveProjectExpense(){
+  const dialog=$('projectExpenseDialog');
+  const p=projectById();
+  if(!p)return alert('ไม่พบโปรเจกต์ กรุณาปิดหน้าต่างแล้วเปิดใหม่');
+  const amount=Number($('projectExpenseAmount')?.value||0);
   const categoryPath=selectedCategoryPath('projectExpense');
-  const tags=parseTagInput($('projectExpenseTags')?.value);
+  const typedName=$('projectExpenseName')?.value.trim()||'';
+  const name=typedName||categoryPath.slice().reverse().find(Boolean)||'ค่าใช้จ่ายโปรเจกต์';
+  const participantIds=[...dialog.querySelectorAll('.project-participant:checked')]
+    .map(x=>x.value).filter(id=>p.members.some(m=>m.id===id&&m.active));
+  if(!Number.isFinite(amount)||amount<=0)return alert('กรุณากรอกจำนวนเงินมากกว่า 0');
   if(!categoryPath.length)return alert('กรุณาเลือกหมวดหมู่');
+  if(!participantIds.length)return alert('กรุณาเลือกผู้ร่วมหารอย่างน้อย 1 คน');
+  if(!projectExpenseImagesData.length)return alert('กรุณาแนบรูปบิลหรือหลักฐานอย่างน้อย 1 รูป');
+  const payerId=$('projectExpensePayer')?.value;
+  if(!payerId||!p.members.some(m=>m.id===payerId))return alert('กรุณาเลือกคนจ่าย');
+  const tags=parseTagInput($('projectExpenseTags')?.value);
   let shares=[];
   if($('projectSplitMode').value==='equal'){
     const each=amount/participantIds.length;
     shares=participantIds.map((id,i)=>({memberId:id,amount:i===participantIds.length-1?amount-each*(participantIds.length-1):each}));
   }else{
-    shares=[...document.querySelectorAll('.project-custom-share')].map(x=>({memberId:x.dataset.member,amount:Number(x.value||0)}));
-    const total=shares.reduce((s,x)=>s+x.amount,0);
-    if(Math.abs(total-amount)>0.01)return alert('ยอดแบ่งรวมต้องเท่ากับยอดรายการ');
+    shares=[...dialog.querySelectorAll('.project-custom-share')]
+      .filter(x=>participantIds.includes(x.dataset.member))
+      .map(x=>({memberId:x.dataset.member,amount:Number(x.value||0)}));
+    const total=shares.reduce((sum,x)=>sum+x.amount,0);
+    if(shares.some(x=>!Number.isFinite(x.amount)||x.amount<0))return alert('กรุณากรอกยอดแบ่งของแต่ละคนให้ถูกต้อง');
+    if(Math.abs(total-amount)>0.01)return alert(`ยอดแบ่งรวม ${total.toLocaleString('th-TH')} ต้องเท่ากับยอดรายการ ${amount.toLocaleString('th-TH')}`);
   }
   const currency=$('projectExpenseCurrency').value;
   const exchangeRate=currency===p.currency?1:Number($('projectExchangeRate').value);
   if(!exchangeRate||exchangeRate<=0)return alert('กรุณาระบุเรทแลกเปลี่ยน');
-  const baseAmount=amount*exchangeRate;
-  const baseShares=shares.map(s=>({memberId:s.memberId,amount:s.amount*exchangeRate}));
-  const expense={
-    id:newId(),date:$('projectExpenseDate').value,amount,currency,exchangeRate,baseAmount,name,
-    category:categoryPath[0]||'อื่น ๆ',subcategory:categoryPath[1]||'',detailCategory:categoryPath[2]||'',categoryPath,tags,
-    payerId:$('projectExpensePayer').value,shares:baseShares,originalShares:shares,note:$('projectExpenseNote').value.trim(),
-    images:projectExpenseImagesData,createdBy:activeUser||'owner',createdAt:new Date().toISOString(),source:'owner'
-  };
-  p.expenses.unshift(expense);
-  rememberMerchantCategory(name,categoryPath,tags);rememberTags(tags);
-  saveProjects();$('projectExpenseDialog').close();renderProjectDetail();refreshTagLibrary();renderMerchantMemory();
+  const saveBtn=dialog.querySelector('.project-expense-footer .btn');
+  if(saveBtn?.disabled)return;
+  if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='กำลังบันทึก…'}
+  try{
+    const baseAmount=amount*exchangeRate;
+    const baseShares=shares.map(s=>({memberId:s.memberId,amount:s.amount*exchangeRate}));
+    const expense={
+      id:newId(),date:$('projectExpenseDate').value||today(),amount,currency,exchangeRate,baseAmount,name,
+      category:categoryPath[0]||'อื่น ๆ',subcategory:categoryPath[1]||'',detailCategory:categoryPath[2]||'',categoryPath,tags,
+      payerId,shares:baseShares,originalShares:shares,note:$('projectExpenseNote').value.trim(),
+      images:[...projectExpenseImagesData],createdBy:activeUser||'owner',createdAt:new Date().toISOString(),source:'owner'
+    };
+    p.expenses=Array.isArray(p.expenses)?p.expenses:[];
+    p.expenses.unshift(expense);
+    rememberMerchantCategory(name,categoryPath,tags);rememberTags(tags);
+    saveProjects();writeCloudCache(cloudStateSnapshot());
+    dialog.close();renderProjectDetail();refreshTagLibrary();renderMerchantMemory();
+    showToast('บันทึกค่าใช้จ่ายในโปรเจกต์แล้ว');
+  }catch(err){
+    console.error(err);reportRuntimeError('บันทึกค่าใช้จ่ายไม่สำเร็จ: '+(err.message||err),err);
+    alert('บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+  }finally{
+    if(saveBtn){saveBtn.disabled=false;saveBtn.textContent='บันทึกค่าใช้จ่าย'}
+  }
 }
 function renderProjectExpenses(){
   const p=projectById();
