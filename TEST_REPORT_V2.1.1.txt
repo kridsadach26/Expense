@@ -1,0 +1,28 @@
+Harmony Haven Stable v2.1.1 — Test Report
+
+ตรวจสอบแบบ Static:
+- JavaScript syntax: ผ่าน
+- API route syntax: ผ่าน
+- Service Worker syntax: ผ่าน
+- HTML duplicate id: ไม่พบ
+- JavaScript อ้างถึง element id ที่หาย: ไม่พบรายการที่มีผลต่อการทำงาน
+- ไม่เหลือการเรียก globalThis.newId() แบบ recursive
+- ไม่เหลือการเปิด/ปิด calendarEditorDialog และ notificationCenterDialog ผ่าน named DOM global
+
+Browser smoke test ด้วย Chromium:
+- Boot ด้วย Cloud State จำลอง: ผ่าน
+- Render Dashboard, History, Settle, Projects, Calendar, Budget, Recurring, Cards และ Settings: ผ่าน
+- คลิกแท็บปฏิทินและปุ่มเพิ่มกำหนดการจริง: ผ่าน
+- สร้างงานใหม่ด้วย crypto.randomUUID() ในรูปแบบ HTTPS behavior: ผ่าน
+- บันทึกงานใหม่: ผ่าน
+- แก้ไขงานเดิม: ผ่าน
+- ทำเครื่องหมายงานเสร็จ: ผ่าน
+- เปิด/ปิด Notification Center: ผ่าน
+- UUID native 3 ค่าไม่ซ้ำ: ผ่าน
+- UUID fallback 3 ค่าไม่ซ้ำ: ผ่าน
+- Runtime page error: ไม่พบ
+- Console error: ไม่พบ
+
+ผลสรุป:
+- ปัญหากดเพิ่มงานใหม่ไม่ได้ได้รับการแก้ที่ต้นเหตุแล้ว
+- ไม่ต้องรัน SQL เพิ่ม

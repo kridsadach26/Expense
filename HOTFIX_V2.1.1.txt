@@ -1,0 +1,22 @@
+รายละเอียดการแก้ไข Harmony Haven v2.1.1
+
+Root cause ที่ตรวจพบ:
+- ใน v2.1.0 มีโค้ด:
+  if(globalThis.crypto?.randomUUID)return globalThis.newId();
+- บน Vercel/HTTPS เบราว์เซอร์รองรับ crypto.randomUUID() ทำให้ newId() เรียกตัวเองซ้ำจนเกิด Maximum call stack size exceeded
+- ผลกระทบครอบคลุมการสร้างข้อมูลใหม่ทุกจุดที่ต้องใช้ id เช่น งาน ปฏิทิน หมวดหมู่ โปรเจกต์ และรายการใหม่
+
+การแก้:
+- เปลี่ยนเป็นการเรียก globalThis.crypto.randomUUID() โดยตรง
+- เพิ่ม UUID v4 fallback เมื่อ randomUUID ไม่มีหรือเรียกไม่ได้
+- เลิกพึ่ง named DOM globals เช่น calendarEditorDialog และ notificationCenterDialog
+- เพิ่ม openDialogById() / closeDialogById()
+- เพิ่ม try/catch และ validation ในฟอร์มปฏิทิน/งาน
+- ป้องกันการ submit ซ้ำระหว่างกำลังบันทึก
+- อัปเดต cache-busting ของ JavaScript เป็น v=2.1.1
+
+ขอบเขต:
+- แก้เฉพาะเสถียรภาพของการสร้างงาน/กำหนดการและ utility ที่เกี่ยวข้อง
+- ไม่เปลี่ยนโครงสร้างข้อมูล Cloud
+- ไม่เปลี่ยน SQL
+- ไม่รื้อ UI หรือฟังก์ชันหมวดหมู่เดิม

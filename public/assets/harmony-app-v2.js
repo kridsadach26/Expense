@@ -11,13 +11,37 @@ function inlineJsString(value=''){
   return JSON.stringify(String(value)).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/&/g,'\\u0026');
 }
 function newId(){
-  if(globalThis.crypto?.randomUUID)return globalThis.newId();
+  // Production runs on HTTPS, where crypto.randomUUID() is available.
+  // Call the browser API directly; calling globalThis.newId() would recurse forever.
+  try{
+    if(typeof globalThis.crypto?.randomUUID==='function')return globalThis.crypto.randomUUID();
+  }catch(err){console.warn('crypto.randomUUID ใช้งานไม่ได้ จะใช้ UUID fallback',err)}
   const bytes=new Uint8Array(16);
   if(globalThis.crypto?.getRandomValues)globalThis.crypto.getRandomValues(bytes);
   else for(let i=0;i<bytes.length;i++)bytes[i]=Math.floor(Math.random()*256);
   bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
   const hex=[...bytes].map(value=>value.toString(16).padStart(2,'0')).join('');
   return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
+function getDialog(id){
+  const dialog=$(id);
+  if(!dialog)throw new Error(`ไม่พบหน้าต่าง ${id}`);
+  return dialog;
+}
+function openDialogById(id){
+  const dialog=getDialog(id);
+  if(typeof dialog.showModal==='function'){
+    if(!dialog.open)dialog.showModal();
+  }else{
+    dialog.setAttribute('open','');
+  }
+  return dialog;
+}
+function closeDialogById(id){
+  const dialog=$(id);
+  if(!dialog)return;
+  if(typeof dialog.close==='function'&&dialog.open)dialog.close();
+  else dialog.removeAttribute('open');
 }
 
 function stableCategoryId(prefix,name){
@@ -1706,44 +1730,63 @@ function calendarItemHtml(i,ds){
   const overdue=ds<today()&&i.status!=='done',categoryLabel=entryCategoryLabel(i);
   return `<div class="agenda-item ${overdue?'overdue':''} ${i.status==='done'?'done':''}"><div style="display:flex;justify-content:space-between;gap:8px"><div><strong>${i.type==='bill'?'💳':i.type==='task'?'✅':'📌'} ${escapeHtml(i.name)}</strong><div class="muted">${i.time||'ทั้งวัน'} · ${(i.assignees||[]).map(a=>profiles[a]?.name||a).join(', ')||'ไม่ได้ระบุผู้รับผิดชอบ'}</div>${i.type==='bill'?`<div class="small">${escapeHtml(categoryLabel)}</div>`:''}${i.note?`<div class="small">${escapeHtml(i.note)}</div>`:''}</div>${i.amount?`<strong>${money(i.amount)}</strong>`:''}</div><div class="actions" style="margin-top:9px">${i.status!=='done'?`<button class="btn btn-primary" onclick="completeCalendarItem('${i.id}','${ds}')">${i.type==='bill'?'ชำระแล้ว':'เสร็จแล้ว'}</button>`:'<span class="badge in">เสร็จแล้ว</span>'}<button class="btn btn-light" onclick="openCalendarEditor('${i.id}')">แก้ไข</button></div></div>`;
 }
-function openCalendarEditor(id=''){
-  const i=calendarItems.find(x=>x.id===id);
-  $('calendarEditId').value=id;
-  $('calendarEditorTitle').textContent=i?'แก้ไขกำหนดการ':'เพิ่มกำหนดการ';
-  $('calendarName').value=i?.name||'';
-  $('calendarType').value=i?.type||'bill';
-  $('calendarPriority').value=i?.priority||'normal';
-  $('calendarDate').value=i?.date||selectedCalendarDate||today();
-  $('calendarTime').value=i?.time||'';
-  $('calendarAmount').value=i?.amount||'';
-  const calendarPath=i?entryCategoryPath(i):['อื่น ๆ'];
-  $('calendarCategory').innerHTML=detailedCategoryOptions(calendarPath);
-  $('calendarRepeat').value=i?.repeat||'none';
-  $('calendarRemind').value=String(i?.remindDays??1);
-  $('calendarPayment').value=i?.payment||'โอนเงิน';
-  $('calendarNote').value=i?.note||'';
-  $('calendarProject').innerHTML='<option value="">ไม่เชื่อมโปรเจกต์</option>'+projects.map(p=>`<option value="${p.id}" ${p.id===i?.projectId?'selected':''}>${escapeHtml(p.name)}</option>`).join('');
-  $('calendarAssignees').innerHTML=Object.keys(profiles).map(k=>`<label><input type="checkbox" value="${k}" ${(i?.assignees||[activeUser]).includes(k)?'checked':''}> ${escapeHtml(profiles[k]?.name||k)}</label>`).join('');
-  $('deleteCalendarBtn').classList.toggle('hidden',!i);
-  calendarEditorDialog.showModal();
+function openCalendarEditor(id='',presetType=''){
+  try{
+    const i=calendarItems.find(x=>x.id===id);
+    $('calendarEditId').value=id;
+    $('calendarEditorTitle').textContent=i?'แก้ไขกำหนดการ':presetType==='task'?'เพิ่มงานใหม่':'เพิ่มกำหนดการ';
+    $('calendarName').value=i?.name||'';
+    $('calendarType').value=i?.type||presetType||'bill';
+    $('calendarPriority').value=i?.priority||'normal';
+    $('calendarDate').value=i?.date||selectedCalendarDate||today();
+    $('calendarTime').value=i?.time||'';
+    $('calendarAmount').value=i?.amount||'';
+    const calendarPath=i?entryCategoryPath(i):['อื่น ๆ'];
+    $('calendarCategory').innerHTML=detailedCategoryOptions(calendarPath);
+    $('calendarRepeat').value=i?.repeat||'none';
+    $('calendarRemind').value=String(i?.remindDays??1);
+    $('calendarPayment').value=i?.payment||'โอนเงิน';
+    $('calendarNote').value=i?.note||'';
+    $('calendarProject').innerHTML='<option value="">ไม่เชื่อมโปรเจกต์</option>'+projects.map(p=>`<option value="${escapeHtml(p.id)}" ${p.id===i?.projectId?'selected':''}>${escapeHtml(p.name)}</option>`).join('');
+    $('calendarAssignees').innerHTML=Object.keys(profiles).map(k=>`<label><input type="checkbox" value="${escapeHtml(k)}" ${(i?.assignees||[activeUser]).includes(k)?'checked':''}> ${escapeHtml(profiles[k]?.name||k)}</label>`).join('');
+    $('deleteCalendarBtn').classList.toggle('hidden',!i);
+    openDialogById('calendarEditorDialog');
+    requestAnimationFrame(()=>$('calendarName')?.focus());
+  }catch(err){
+    reportRuntimeError('เปิดหน้าต่างเพิ่มงานไม่สำเร็จ: '+err.message,err);
+  }
 }
-$('calendarForm').onsubmit=e=>{
+const calendarForm=$('calendarForm');
+if(calendarForm)calendarForm.onsubmit=e=>{
   e.preventDefault();
-  const id=$('calendarEditId').value||newId(),old=calendarItems.find(x=>x.id===id);
-  const path=parseCategoryPathValue($('calendarCategory').value);
-  const item={
-    id,name:$('calendarName').value.trim(),type:$('calendarType').value,priority:$('calendarPriority').value,
-    date:$('calendarDate').value,time:$('calendarTime').value,amount:Number($('calendarAmount').value||0),
-    category:path[0]||'อื่น ๆ',subcategory:path[1]||'',detailCategory:path[2]||'',categoryPath:path,
-    repeat:$('calendarRepeat').value,remindDays:Number($('calendarRemind').value||0),
-    assignees:[...$('calendarAssignees').querySelectorAll('input:checked')].map(x=>x.value),
-    projectId:$('calendarProject').value,payment:$('calendarPayment').value,note:$('calendarNote').value.trim(),
-    status:old?.status||'pending',completedOccurrences:old?.completedOccurrences||[],
-    createdBy:old?.createdBy||activeUser,createdAt:old?.createdAt||new Date().toISOString()
-  };
-  if(old)calendarItems=calendarItems.map(x=>x.id===id?item:x);else calendarItems.unshift(item);
-  queueCloudSave();calendarEditorDialog.close();renderCalendar();
-  createNotification(item.assignees,`เพิ่มกำหนดการ: ${item.name}`,item.date,item.id);
+  const submitButton=calendarForm.querySelector('button[type="submit"]');
+  if(submitButton?.disabled)return;
+  try{
+    const name=$('calendarName').value.trim();
+    const date=$('calendarDate').value;
+    if(!name){$('calendarName').focus();throw new Error('กรุณาระบุชื่องานหรือชื่อกำหนดการ')}
+    if(!date){$('calendarDate').focus();throw new Error('กรุณาระบุวันที่')}
+    if(submitButton){submitButton.disabled=true;submitButton.textContent='กำลังบันทึก…'}
+    const id=$('calendarEditId').value||newId(),old=calendarItems.find(x=>x.id===id);
+    const path=parseCategoryPathValue($('calendarCategory').value);
+    const item={
+      id,name,type:$('calendarType').value,priority:$('calendarPriority').value,
+      date,time:$('calendarTime').value,amount:Number($('calendarAmount').value||0),
+      category:path[0]||'อื่น ๆ',subcategory:path[1]||'',detailCategory:path[2]||'',categoryPath:path,
+      repeat:$('calendarRepeat').value,remindDays:Number($('calendarRemind').value||0),
+      assignees:[...$('calendarAssignees').querySelectorAll('input:checked')].map(x=>x.value),
+      projectId:$('calendarProject').value,payment:$('calendarPayment').value,note:$('calendarNote').value.trim(),
+      status:old?.status||'pending',completedOccurrences:old?.completedOccurrences||[],
+      createdBy:old?.createdBy||activeUser,createdAt:old?.createdAt||new Date().toISOString()
+    };
+    if(old)calendarItems=calendarItems.map(x=>x.id===id?item:x);else calendarItems.unshift(item);
+    queueCloudSave();closeDialogById('calendarEditorDialog');renderCalendar();
+    createNotification(item.assignees,`${old?'แก้ไข':'เพิ่ม'}กำหนดการ: ${item.name}`,item.date,item.id);
+  }catch(err){
+    reportRuntimeError('บันทึกงานไม่สำเร็จ: '+err.message,err);
+  }finally{
+    if(submitButton){submitButton.disabled=false;submitButton.textContent='บันทึก'}
+  }
 };
 $('deleteCalendarBtn').onclick=()=>deleteCalendarItem();
 function completeCalendarItem(id,occurrenceDate){
@@ -1767,7 +1810,7 @@ function deleteCalendarItem(){
   const id=$('calendarEditId').value;
   if(confirm('ลบกำหนดการนี้หรือไม่?')){
     calendarItems=calendarItems.filter(x=>x.id!==id);
-    queueCloudSave();calendarEditorDialog.close();renderCalendar();
+    queueCloudSave();closeDialogById('calendarEditorDialog');renderCalendar();
   }
 }
 function createNotification(users,title,date,itemId){if(!(users||[]).includes(activeUser))return;const n={id:newId(),title,date,itemId,read:false,createdAt:new Date().toISOString()};appNotifications.unshift(n);showToast(title);sendBrowserNotification(title,date);queueCloudSave();updateNotificationBadge()}
@@ -1775,7 +1818,7 @@ function showToast(text){const el=document.createElement('div');el.className='to
 async function sendBrowserNotification(title,body=''){if(!('Notification'in window))return;if(Notification.permission==='default')await Notification.requestPermission();if(Notification.permission==='granted'){try{const reg=await navigator.serviceWorker?.ready;if(reg)reg.showNotification(title,{body,icon:'/icon-192.png',badge:'/icon-192.png',data:{url:'/app.html?page=calendar'}});else new Notification(title,{body})}catch{new Notification(title,{body})}}}
 function checkDueCalendarReminders(){const now=new Date();calendarItems.forEach(i=>{if(!(i.assignees||[]).includes(activeUser)||i.status==='done')return;const horizon=new Date(now);horizon.setDate(horizon.getDate()+Number(i.remindDays||0));const occ=calendarOccurrences(i,new Date(now.getFullYear(),now.getMonth(),now.getDate()),horizon);occ.forEach(o=>{const key=`${i.id}:${o.occurrenceDate}:${activeUser}`;if(appNotifications.some(n=>n.reminderKey===key))return;const n={id:newId(),title:`ใกล้ถึงกำหนด: ${i.name}`,date:o.occurrenceDate,itemId:i.id,read:false,reminderKey:key,createdAt:new Date().toISOString()};appNotifications.unshift(n);showToast(n.title);sendBrowserNotification(n.title,`กำหนด ${new Date(o.occurrenceDate+'T12:00:00').toLocaleDateString('th-TH')}`)})});queueCloudSave();updateNotificationBadge()}
 function updateNotificationBadge(){const count=appNotifications.filter(n=>!n.read).length;$('notificationBadge')?.classList.toggle('hidden',!count);if($('notificationBadge'))$('notificationBadge').textContent=count;$('calendarNavBadge')?.classList.toggle('hidden',!count);if($('calendarNavBadge'))$('calendarNavBadge').textContent=count}
-function openNotificationCenter(){renderNotificationCenter();notificationCenterDialog.showModal()}
+function openNotificationCenter(){renderNotificationCenter();openDialogById('notificationCenterDialog')}
 function renderNotificationCenter(){$('notificationCenterList').innerHTML=appNotifications.length?appNotifications.map(n=>`<div class="list-row"><div><strong>${escapeHtml(n.title)}</strong><div class="muted">${n.date||''} · ${new Date(n.createdAt).toLocaleString('th-TH')}</div></div>${n.read?'<span class="badge">อ่านแล้ว</span>':`<button class="btn btn-light" onclick="markNotificationRead('${n.id}')">อ่านแล้ว</button>`}</div>`).join(''):'<div class="empty">ไม่มีการแจ้งเตือน</div>'}
 function markNotificationRead(id){const n=appNotifications.find(x=>x.id===id);if(n)n.read=true;queueCloudSave();renderNotificationCenter();updateNotificationBadge()}
 function markAllNotificationsRead(){appNotifications.forEach(n=>n.read=true);queueCloudSave();renderNotificationCenter();updateNotificationBadge()}

@@ -1058,7 +1058,7 @@
 
 
 <dialog id="calendarEditorDialog">
-  <div class="dialog-head"><strong id="calendarEditorTitle">เพิ่มกำหนดการ</strong><button class="btn btn-light" onclick="calendarEditorDialog.close()">ปิด</button></div>
+  <div class="dialog-head"><strong id="calendarEditorTitle">เพิ่มกำหนดการ</strong><button class="btn btn-light" onclick="closeDialogById('calendarEditorDialog')">ปิด</button></div>
   <div class="dialog-body"><form id="calendarForm">
     <input id="calendarEditId" type="hidden">
     <div class="full"><label>ชื่อรายการ</label><input id="calendarName" required placeholder="เช่น ชำระค่าไฟ"></div>
@@ -1074,9 +1074,9 @@
     <div class="full" style="display:flex;justify-content:flex-end;gap:8px"><button id="deleteCalendarBtn" type="button" class="btn btn-danger hidden">ลบ</button><button type="submit" class="btn btn-primary">บันทึก</button></div>
   </form></div>
 </dialog>
-<dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="notificationCenterDialog.close()">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
+<dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="closeDialogById('notificationCenterDialog')">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
 <div id="toastStack" class="toast-stack"></div>
 
-<script src="/assets/harmony-app-v2.js?v=2.1.0" defer></script>
+<script src="/assets/harmony-app-v2.js?v=2.1.1" defer></script>
 </body>
 </html>
