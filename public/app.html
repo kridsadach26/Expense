@@ -356,6 +356,47 @@
       .project-expense-summary{grid-template-columns:1fr 1fr 1fr}
     }
 
+
+
+    /* Travel planner v2.2.0 */
+    .travel-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:999px;background:#eaf5ff;color:#1967a3;font-size:12px;font-weight:800}
+    .travel-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+    .travel-summary-card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:13px}
+    .travel-summary-card span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+    .travel-summary-card strong{font-size:20px}
+    .travel-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .travel-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:14px}
+    .travel-panel{border:1px solid var(--line);border-radius:16px;background:#fff;padding:14px}
+    .travel-panel h3{margin:0 0 12px}
+    .travel-overview{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .travel-overview span{background:#f5f6f8;border-radius:999px;padding:7px 10px;font-size:13px}
+    .travel-filter-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+    .travel-filter-row button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 10px;cursor:pointer}
+    .travel-filter-row button.active{background:#2f333a;color:#fff;border-color:#2f333a}
+    .travel-proposal{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
+    .travel-proposal-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .travel-proposal-title{font-weight:800;font-size:16px;margin:2px 0}
+    .travel-proposal-meta{font-size:12px;color:var(--muted);line-height:1.55}
+    .travel-proposal-cost{text-align:right;font-weight:800;white-space:nowrap}
+    .travel-status{display:inline-flex;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800}
+    .travel-status.proposed{background:#fff4db;color:#8b5c00}.travel-status.shortlisted{background:#eaf5ff;color:#17679c}.travel-status.approved{background:#e9f8ef;color:#187342}.travel-status.booked{background:#efeafe;color:#5b3aa8}.travel-status.rejected{background:#fdebec;color:#a1262f}
+    .travel-proposal-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+    .travel-proposal-actions .btn{padding:6px 9px;font-size:12px}
+    .travel-vote{font-weight:800;color:#187342}
+    .travel-comment{background:#f7f7f8;border-radius:9px;padding:7px 9px;margin-top:6px;font-size:12px}
+    .travel-itinerary-item{display:grid;grid-template-columns:86px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+    .travel-itinerary-item:last-child{border-bottom:0}
+    .travel-itinerary-time{font-weight:800;color:#17679c}
+    .travel-budget-row{margin-bottom:11px}
+    .travel-budget-head{display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:5px}
+    .travel-budget-bar{height:8px;background:#edf0f3;border-radius:999px;overflow:hidden}.travel-budget-bar div{height:100%;background:#f59a3d;border-radius:999px}
+    .travel-empty{padding:22px;text-align:center;color:var(--muted);background:#fafafa;border-radius:12px}
+    .trip-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .trip-form-grid .full{grid-column:1/-1}
+    .trip-member-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .trip-member-checks label{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:9px}
+    @media(max-width:800px){.travel-summary-grid{grid-template-columns:1fr 1fr}.travel-layout{grid-template-columns:1fr}.trip-form-grid{grid-template-columns:1fr}.trip-form-grid .full{grid-column:auto}.travel-proposal-top{flex-direction:column}.travel-proposal-cost{text-align:left}.travel-itinerary-item{grid-template-columns:70px 1fr}.travel-itinerary-item>button{grid-column:2}}
+
 </style>
 </head>
 <body class="app-loading">
@@ -613,6 +654,7 @@
         </div>
         <div class="project-toolbar">
           <button class="btn btn-light" onclick="openProjectShare()">แชร์</button>
+          <button id="enableTripPlannerBtn" class="btn btn-light hidden" type="button" onclick="enableTravelPlanner()">✈️ เปิดแผนทริป</button>
           <button class="btn btn-light" onclick="openMemberManager()">สมาชิก</button>
           <button id="closeProjectBtn" type="button" class="btn btn-dark">ปิดโปรเจกต์</button>
           <button id="cancelProjectBtn" type="button" class="btn btn-danger">ยกเลิกโปรเจกต์</button>
@@ -632,6 +674,7 @@
         <button data-project-tab="balances">ยอดสุทธิ</button>
         <button data-project-tab="settlements">สรุปการโอน</button>
         <button data-project-tab="pending">รอตรวจสอบ</button>
+        <button id="projectTravelTabBtn" class="hidden" data-project-tab="travel">✈️ วางแผนทริป</button>
       </div>
 
       <div id="projectTabExpenses" class="project-tab-panel">
@@ -652,6 +695,41 @@
       <div id="projectTabPending" class="project-tab-panel hidden">
         <div class="section-title"><h2>รายการจากลิงก์หรือ QR</h2></div>
         <div class="card"><div id="projectPending"></div></div>
+      </div>
+
+      <div id="projectTabTravel" class="project-tab-panel hidden">
+        <div class="section-title">
+          <div><h2>แผนท่องเที่ยวและประมาณการ</h2><div id="tripOverviewText" class="muted"></div></div>
+          <div class="travel-toolbar">
+            <button class="btn btn-light" type="button" onclick="openTripSettings()">ตั้งค่าทริป</button>
+            <button class="btn btn-primary" type="button" onclick="openTripProposal()">+ เสนอรายการ</button>
+            <button class="btn btn-light" type="button" onclick="openTripItinerary()">+ เพิ่มแผนรายวัน</button>
+            <button class="btn btn-light" type="button" onclick="shareTripPlan()">แชร์แผน</button>
+          </div>
+        </div>
+        <div class="travel-summary-grid">
+          <div class="travel-summary-card"><span>ประมาณการทั้งหมด</span><strong id="tripEstimatedTotal">฿0</strong></div>
+          <div class="travel-summary-card"><span>อนุมัติ / จองแล้ว</span><strong id="tripApprovedTotal">฿0</strong></div>
+          <div class="travel-summary-card"><span>ใช้จริง</span><strong id="tripActualTotal">฿0</strong></div>
+          <div class="travel-summary-card"><span>ประมาณต่อคน</span><strong id="tripPerPerson">฿0</strong></div>
+        </div>
+        <div class="travel-layout">
+          <div>
+            <div class="travel-panel">
+              <div class="section-title" style="margin-top:0"><h3>ข้อเสนอจากสมาชิก</h3><div id="tripProposalCount" class="muted"></div></div>
+              <div id="tripProposalFilters" class="travel-filter-row"></div>
+              <div id="tripProposalList"></div>
+            </div>
+            <div class="travel-panel" style="margin-top:14px">
+              <div class="section-title" style="margin-top:0"><h3>แผนรายวัน</h3></div>
+              <div id="tripItineraryList"></div>
+            </div>
+          </div>
+          <div>
+            <div class="travel-panel"><h3>ประมาณการตามหมวด</h3><div id="tripBudgetByCategory"></div></div>
+            <div class="travel-panel" style="margin-top:14px"><h3>ข้อมูลสำคัญ</h3><div id="tripImportantInfo"></div></div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -911,6 +989,9 @@
   <div class="dialog-body">
     <div class="grid" style="grid-template-columns:1fr 1fr">
       <div class="full"><label>ชื่อโปรเจกต์</label><input id="newProjectName" placeholder="เช่น ทริปเชียงใหม่"></div>
+      <div><label>ประเภทโปรเจกต์</label><select id="newProjectType"><option value="general">โปรเจกต์ทั่วไป</option><option value="international_trip">เที่ยวต่างประเทศ</option></select></div>
+      <div id="newProjectDestinationWrap" class="hidden"><label>ประเทศปลายทาง</label><input id="newProjectDestination" placeholder="เช่น ญี่ปุ่น"></div>
+      <div id="newProjectCitiesWrap" class="full hidden"><label>เมือง / พื้นที่</label><input id="newProjectCities" placeholder="เช่น โตเกียว, โอซาก้า, เกียวโต"></div>
       <div><label>วันที่เริ่ม</label><input id="newProjectStart" type="date"></div>
       <div><label>วันที่สิ้นสุด</label><input id="newProjectEnd" type="date"></div>
       <div><label>สกุลเงิน</label><select id="newProjectCurrency">
@@ -1057,6 +1138,54 @@
 </dialog>
 
 
+<dialog id="tripSettingsDialog">
+  <div class="dialog-head"><strong>ตั้งค่าทริปต่างประเทศ</strong><button class="btn btn-light" type="button" onclick="closeDialogById('tripSettingsDialog')">ปิด</button></div>
+  <div class="dialog-body"><div class="trip-form-grid">
+    <div><label>ประเทศปลายทาง</label><input id="tripDestination" placeholder="เช่น ญี่ปุ่น"></div>
+    <div><label>เมือง / พื้นที่</label><input id="tripCities" placeholder="เช่น โตเกียว, โอซาก้า"></div>
+    <div><label>งบรวมเป้าหมาย</label><input id="tripTargetBudget" type="number" min="0" step="0.01" inputmode="decimal"></div>
+    <div><label>เงินสำรองฉุกเฉิน (%)</label><input id="tripEmergencyPercent" type="number" min="0" max="100" step="1" value="10"></div>
+    <div><label>เลขเที่ยวบิน / การเดินทางหลัก</label><input id="tripTransportRef" placeholder="เช่น FD634 / FD637"></div>
+    <div><label>ที่พักหลัก</label><input id="tripAccommodation" placeholder="ชื่อโรงแรมหรือที่พัก"></div>
+    <div class="full"><label>ข้อมูลสำคัญ</label><textarea id="tripImportantNote" placeholder="เช่น วีซ่า ประกัน เบอร์ติดต่อฉุกเฉิน จุดนัดพบ"></textarea></div>
+    <div class="full" style="text-align:right"><button class="btn btn-primary" type="button" onclick="saveTripSettings()">บันทึกการตั้งค่า</button></div>
+  </div></div>
+</dialog>
+
+<dialog id="tripProposalDialog">
+  <div class="dialog-head"><strong id="tripProposalDialogTitle">เสนอข้อมูลท่องเที่ยว</strong><button class="btn btn-light" type="button" onclick="closeDialogById('tripProposalDialog')">ปิด</button></div>
+  <div class="dialog-body"><div class="trip-form-grid">
+    <input id="tripProposalId" type="hidden">
+    <div><label>หมวด</label><select id="tripProposalCategory"></select></div>
+    <div><label>สถานะ</label><select id="tripProposalStatus"><option value="proposed">เสนอ</option><option value="shortlisted">เข้ารอบ</option><option value="approved">อนุมัติ</option><option value="booked">จองแล้ว</option><option value="rejected">ไม่เลือก</option></select></div>
+    <div class="full"><label>ชื่อรายการ</label><input id="tripProposalTitle" placeholder="เช่น โรงแรมใกล้สถานีชินจูกุ"></div>
+    <div><label>เมือง / สถานที่</label><input id="tripProposalPlace" placeholder="เช่น Tokyo / Shinjuku"></div>
+    <div><label>วันที่ใช้บริการ</label><input id="tripProposalDate" type="date"></div>
+    <div><label>จำนวนเงินโดยประมาณ</label><input id="tripProposalAmount" type="number" min="0" step="0.01" inputmode="decimal"></div>
+    <div><label>สกุลเงิน</label><select id="tripProposalCurrency"></select></div>
+    <div><label>เรทเป็นสกุลหลัก</label><input id="tripProposalRate" type="number" min="0" step="0.000001" value="1" inputmode="decimal"></div>
+    <div><label>เสนอโดย</label><select id="tripProposalBy"></select></div>
+    <div><label>จำนวนคนที่ราคานี้ครอบคลุม</label><input id="tripProposalPeople" type="number" min="1" step="1" value="1"></div>
+    <div class="full"><label>ลิงก์ข้อมูล / Google Maps / หน้าจอง</label><input id="tripProposalLink" type="url" placeholder="https://..."></div>
+    <div class="full"><label>รายละเอียด จุดเด่น หรือเงื่อนไข</label><textarea id="tripProposalNote" placeholder="เช่น ยกเลิกฟรี รวมอาหารเช้า เดิน 5 นาทีจากสถานี"></textarea></div>
+    <div class="full" style="text-align:right"><button class="btn btn-primary" type="button" onclick="saveTripProposal()">บันทึกข้อเสนอ</button></div>
+  </div></div>
+</dialog>
+
+<dialog id="tripItineraryDialog">
+  <div class="dialog-head"><strong>เพิ่มแผนรายวัน</strong><button class="btn btn-light" type="button" onclick="closeDialogById('tripItineraryDialog')">ปิด</button></div>
+  <div class="dialog-body"><div class="trip-form-grid">
+    <input id="tripItineraryId" type="hidden">
+    <div><label>วันที่</label><input id="tripItineraryDate" type="date"></div>
+    <div><label>เวลา</label><input id="tripItineraryTime" type="time"></div>
+    <div class="full"><label>กิจกรรม / สถานที่</label><input id="tripItineraryTitle" placeholder="เช่น เช็กอินโรงแรม / เที่ยววัดอาซากุสะ"></div>
+    <div><label>เมือง / จุดนัดพบ</label><input id="tripItineraryPlace"></div>
+    <div><label>ผู้เสนอ</label><select id="tripItineraryBy"></select></div>
+    <div class="full"><label>รายละเอียด</label><textarea id="tripItineraryNote"></textarea></div>
+    <div class="full" style="text-align:right"><button class="btn btn-primary" type="button" onclick="saveTripItinerary()">บันทึกแผน</button></div>
+  </div></div>
+</dialog>
+
 <dialog id="calendarEditorDialog">
   <div class="dialog-head"><strong id="calendarEditorTitle">เพิ่มกำหนดการ</strong><button class="btn btn-light" onclick="closeDialogById('calendarEditorDialog')">ปิด</button></div>
   <div class="dialog-body"><form id="calendarForm">
@@ -1077,6 +1206,6 @@
 <dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="closeDialogById('notificationCenterDialog')">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
 <div id="toastStack" class="toast-stack"></div>
 
-<script src="/assets/harmony-app-v2.js?v=2.1.2" defer></script>
+<script src="/assets/harmony-app-v2.js?v=2.2.0" defer></script>
 </body>
 </html>

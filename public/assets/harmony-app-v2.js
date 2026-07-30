@@ -218,6 +218,14 @@ let splitCounter = 0;
 let currentPeriod = 'month';
 const initialParams = new URLSearchParams(location.search);
 const urlUser = initialParams.get('user');
+let projectDeepLinkOpened=false;
+function handleProjectDeepLink(){
+  const projectId=initialParams.get('project');if(!projectId||projectDeepLinkOpened)return false;
+  if(!projects.some(p=>p.id===projectId))return false;
+  projectDeepLinkOpened=true;openProject(projectId);
+  const tab=initialParams.get('tab');if(tab)document.querySelector(`[data-project-tab="${String(tab).replace(/[^a-z]/gi,'')}"]`)?.click();
+  return true;
+}
 let activeUser = urlUser || sessionStorage.getItem('home-expense-user') || localStorage.getItem('home-expense-user') || '';
 
 let appSettings = safeParseStorage('home-expense-settings',{});
@@ -237,6 +245,7 @@ let recurringItems = safeParseStorage('home-expense-recurring',[]);
 let creditCards = safeParseStorage('home-expense-cards',[]);
 
 let projects = safeParseStorage('home-expense-projects',[]);
+let tripProposalFilter='all';
 let calendarItems = safeParseStorage('home-expense-calendar',[]);
 let appNotifications = safeParseStorage('home-expense-notifications',[]);
 let calendarViewDate=new Date();let selectedCalendarDate=today();let calendarFilter='all';
@@ -389,7 +398,7 @@ async function bootstrapCloudState(){
       applyCloudState(cached.state);
       const cachedProfile=activeUser||Object.keys(profiles||{})[0];
       if(cachedProfile)persistActiveUser(cachedProfile);
-      cloudReady=true;renderLoadedState();finishBoot();cacheRendered=true;
+      cloudReady=true;renderLoadedState();finishBoot();handleProjectDeepLink();cacheRendered=true;
       setCloudStatus('กำลังตรวจข้อมูลล่าสุด…','syncing');
     }
     const {res,data}=await fetchJsonWithTimeout('/api/cloud/state',{cache:'no-store'},12000);
@@ -404,6 +413,7 @@ async function bootstrapCloudState(){
     else persistActiveUser(profileName);
     cloudReady=true;clearLegacyCloudData();
     renderLoadedState();
+    handleProjectDeepLink();
     writeCloudCache(cloudStateSnapshot());
     setCloudStatus('ข้อมูล Cloud ล่าสุด','ok');
     const page=initialParams.get('page');if(page&&$(page))showPage(page,{updateUrl:false});
@@ -1144,25 +1154,37 @@ function projectCurrency(p,amount){
   return symbol+Number(amount||0).toLocaleString('th-TH',{maximumFractionDigits:2});
 }
 
+function toggleNewProjectTravelFields(){
+  const travel=$('newProjectType')?.value==='international_trip';
+  $('newProjectDestinationWrap')?.classList.toggle('hidden',!travel);
+  $('newProjectCitiesWrap')?.classList.toggle('hidden',!travel);
+}
+$('newProjectType')?.addEventListener('change',toggleNewProjectTravelFields);
 function openProjectCreate(){
   $('newProjectName').value='';
+  $('newProjectType').value='general';
+  $('newProjectDestination').value='';
+  $('newProjectCities').value='';
+  toggleNewProjectTravelFields();
   $('newProjectStart').value=today();
   $('newProjectEnd').value='';
   $('newProjectMembers').value='Toey, Perla';
   $('newProjectNote').value='';
-  $('projectCreateDialog').showModal();
+  openDialogById('projectCreateDialog');
 }
 function createProject(){
   const name=$('newProjectName').value.trim();
   if(!name)return alert('กรุณาระบุชื่อโปรเจกต์');
   const names=$('newProjectMembers').value.split(',').map(x=>x.trim()).filter(Boolean);
   const uniq=[...new Set(names)];
+  const projectType=$('newProjectType')?.value||'general';
   const p={
     id:newId(),name,start:$('newProjectStart').value,end:$('newProjectEnd').value,
-    currency:$('newProjectCurrency').value,note:$('newProjectNote').value.trim(),status:'active',
+    currency:$('newProjectCurrency').value,note:$('newProjectNote').value.trim(),status:'active',type:projectType,
     createdAt:new Date().toISOString(),owner:activeUser||'Toey',
     members:uniq.map(n=>({id:newId(),name:n,active:true})),
-    expenses:[],pending:[],settlements:[]
+    expenses:[],pending:[],settlements:[],
+    ...(projectType==='international_trip'?{travelPlan:{destination:$('newProjectDestination')?.value.trim()||'',cities:$('newProjectCities')?.value.trim()||'',targetBudget:0,emergencyPercent:10,transportRef:'',accommodation:'',importantNote:'',proposals:[],itinerary:[]}}:{})
   };
   projects.unshift(p);saveProjects();$('projectCreateDialog').close();renderProjects();openProject(p.id);
 }
@@ -1171,9 +1193,9 @@ function renderProjects(){
     const total=(p.expenses||[]).reduce((s,e)=>s+expenseBaseAmount(e),0);
     return `<div class="project-card">
       <div class="muted"><span class="status-dot ${p.status!=='active'?'closed':''}"></span> ${p.status==='closed'?'จบแล้ว':p.status==='cancelled'?'ยกเลิกแล้ว':'กำลังดำเนินการ'}</div>
-      <h3>${p.name}</h3>
-      <div class="muted">${p.start||'-'} ${p.end?'ถึง '+p.end:''}</div>
-      <div style="margin:12px 0"><strong>${projectCurrency(p,total)}</strong> · ${p.expenses?.length||0} รายการ · ${p.members?.length||0} คน</div>
+      <h3>${escapeHtml(p.name)} ${p.type==='international_trip'?'<span class="travel-badge">✈️ ต่างประเทศ</span>':''}</h3>
+      <div class="muted">${p.start||'-'} ${p.end?'ถึง '+p.end:''}${p.type==='international_trip'&&p.travelPlan?.destination?` · ${escapeHtml(p.travelPlan.destination)}`:''}</div>
+      <div style="margin:12px 0"><strong>${projectCurrency(p,total)}</strong> · ${p.expenses?.length||0} รายการ · ${p.members?.length||0} คน${p.type==='international_trip'?` · ${(p.travelPlan?.proposals||[]).length} ข้อเสนอ`:''}</div>
       <button class="btn btn-primary" onclick="openProject('${p.id}')">เปิดโปรเจกต์</button>
     </div>`;
   }).join(''):'<div class="card empty">ยังไม่มีโปรเจกต์ กด “สร้างโปรเจกต์” เพื่อเริ่มใช้งาน</div>';
@@ -1195,16 +1217,145 @@ function renderProjectDetail(){
   $('closeProjectBtn').disabled=p.status==='cancelled';
   $('cancelProjectBtn').disabled=p.status==='cancelled';
   $('cancelProjectBtn').classList.toggle('hidden',p.status==='cancelled');
+  const isTrip=p.type==='international_trip'||!!p.travelPlan;
+  $('projectTravelTabBtn')?.classList.toggle('hidden',!isTrip);
+  $('enableTripPlannerBtn')?.classList.toggle('hidden',isTrip);
+  if(isTrip){ensureTravelPlan(p);renderTripPlanner();}
+  else if(document.querySelector('[data-project-tab="travel"]')?.classList.contains('active'))document.querySelector('[data-project-tab="expenses"]')?.click();
   renderProjectExpenses();
   renderProjectBalances();
   renderProjectSettlements();
   renderProjectPending();
 }
 document.querySelectorAll('[data-project-tab]').forEach(btn=>btn.addEventListener('click',()=>{
+  if(btn.classList.contains('hidden'))return;
   document.querySelectorAll('[data-project-tab]').forEach(b=>b.classList.toggle('active',b===btn));
   document.querySelectorAll('.project-tab-panel').forEach(x=>x.classList.add('hidden'));
-  $('projectTab'+btn.dataset.projectTab.charAt(0).toUpperCase()+btn.dataset.projectTab.slice(1)).classList.remove('hidden');
+  const panel=$('projectTab'+btn.dataset.projectTab.charAt(0).toUpperCase()+btn.dataset.projectTab.slice(1));
+  if(panel)panel.classList.remove('hidden');
+  if(btn.dataset.projectTab==='travel')renderTripPlanner();
 }));
+
+
+const TRIP_CATEGORIES=[
+  ['flight','✈️ เที่ยวบิน'],['hotel','🏨 ที่พัก'],['transport','🚆 การเดินทาง'],['food','🍜 อาหาร'],
+  ['activity','🎟️ กิจกรรม/สถานที่'],['visa','🛂 วีซ่า/ประกัน'],['shopping','🛍️ ช้อปปิ้ง/ของฝาก'],
+  ['communication','📶 ซิม/อินเทอร์เน็ต'],['emergency','🧰 เงินสำรอง'],['other','📌 อื่น ๆ']
+];
+const TRIP_STATUS_LABELS={proposed:'เสนอ',shortlisted:'เข้ารอบ',approved:'อนุมัติ',booked:'จองแล้ว',rejected:'ไม่เลือก'};
+function ensureTravelPlan(p){
+  if(!p.travelPlan||typeof p.travelPlan!=='object')p.travelPlan={};
+  const t=p.travelPlan;
+  t.destination=String(t.destination||'');t.cities=String(t.cities||'');t.targetBudget=Number(t.targetBudget||0);
+  t.emergencyPercent=Number.isFinite(Number(t.emergencyPercent))?Number(t.emergencyPercent):10;
+  t.transportRef=String(t.transportRef||'');t.accommodation=String(t.accommodation||'');t.importantNote=String(t.importantNote||'');
+  t.proposals=Array.isArray(t.proposals)?t.proposals:[];t.itinerary=Array.isArray(t.itinerary)?t.itinerary:[];
+  return t;
+}
+function tripCategoryLabel(key){return TRIP_CATEGORIES.find(x=>x[0]===key)?.[1]||'📌 อื่น ๆ'}
+function safeExternalUrl(value){
+  try{const u=new URL(String(value||''));return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}
+}
+function tripProposalBaseAmount(p,item){return Number(item.amount||0)*Number(item.exchangeRate||1)}
+function tripMemberName(p,id){return p.members?.find(m=>m.id===id)?.name||id||'-'}
+function travelCurrencyOptions(selected='THB'){
+  return ['THB','USD','JPY','EUR','GBP','CNY','HKD','SGD','KRW','VND','MYR','TWD','AUD','CHF'].map(c=>`<option value="${c}" ${c===selected?'selected':''}>${c}</option>`).join('');
+}
+function enableTravelPlanner(){
+  const p=projectById();if(!p)return;
+  if(!confirm('เปิดส่วนวางแผนท่องเที่ยวต่างประเทศสำหรับโปรเจกต์นี้หรือไม่?'))return;
+  p.type='international_trip';ensureTravelPlan(p);saveProjects();renderProjectDetail();
+  document.querySelector('[data-project-tab="travel"]')?.click();openTripSettings();
+}
+function openTripSettings(){
+  const p=projectById();if(!p)return;const t=ensureTravelPlan(p);
+  $('tripDestination').value=t.destination;$('tripCities').value=t.cities;$('tripTargetBudget').value=t.targetBudget||'';
+  $('tripEmergencyPercent').value=t.emergencyPercent;$('tripTransportRef').value=t.transportRef;$('tripAccommodation').value=t.accommodation;$('tripImportantNote').value=t.importantNote;
+  openDialogById('tripSettingsDialog');
+}
+function saveTripSettings(){
+  const p=projectById();if(!p)return;const t=ensureTravelPlan(p);
+  t.destination=$('tripDestination').value.trim();t.cities=$('tripCities').value.trim();t.targetBudget=Math.max(0,Number($('tripTargetBudget').value||0));
+  t.emergencyPercent=Math.min(100,Math.max(0,Number($('tripEmergencyPercent').value||0)));t.transportRef=$('tripTransportRef').value.trim();
+  t.accommodation=$('tripAccommodation').value.trim();t.importantNote=$('tripImportantNote').value.trim();p.type='international_trip';
+  saveProjects();closeDialogById('tripSettingsDialog');renderProjectDetail();showToast('บันทึกข้อมูลทริปแล้ว');
+}
+function tripMemberOptions(p,selected=''){
+  return (p.members||[]).filter(m=>m.active!==false).map(m=>`<option value="${m.id}" ${m.id===selected?'selected':''}>${escapeHtml(m.name)}</option>`).join('');
+}
+function openTripProposal(id=''){
+  const p=projectById();if(!p)return;const t=ensureTravelPlan(p);const item=t.proposals.find(x=>x.id===id);
+  $('tripProposalDialogTitle').textContent=item?'แก้ไขข้อเสนอ':'เสนอข้อมูลท่องเที่ยว';$('tripProposalId').value=item?.id||'';
+  $('tripProposalCategory').innerHTML=TRIP_CATEGORIES.map(([key,label])=>`<option value="${key}" ${item?.category===key?'selected':''}>${label}</option>`).join('');
+  $('tripProposalStatus').value=item?.status||'proposed';$('tripProposalTitle').value=item?.title||'';$('tripProposalPlace').value=item?.place||'';
+  $('tripProposalDate').value=item?.date||'';$('tripProposalAmount').value=item?.amount||'';$('tripProposalCurrency').innerHTML=travelCurrencyOptions(item?.currency||p.currency);
+  $('tripProposalRate').value=item?.exchangeRate||1;$('tripProposalBy').innerHTML=tripMemberOptions(p,item?.proposedBy||p.members?.[0]?.id||'');
+  $('tripProposalPeople').value=item?.people||Math.max(1,(p.members||[]).filter(m=>m.active!==false).length);$('tripProposalLink').value=item?.link||'';$('tripProposalNote').value=item?.note||'';
+  openDialogById('tripProposalDialog');
+}
+function saveTripProposal(){
+  const p=projectById();if(!p)return;const t=ensureTravelPlan(p);const id=$('tripProposalId').value;const title=$('tripProposalTitle').value.trim();
+  if(!title)return alert('กรุณาระบุชื่อข้อเสนอ');const amount=Math.max(0,Number($('tripProposalAmount').value||0));const currency=$('tripProposalCurrency').value;
+  const exchangeRate=currency===p.currency?1:Number($('tripProposalRate').value||0);if(amount>0&&(!exchangeRate||exchangeRate<=0))return alert('กรุณาระบุเรทแลกเปลี่ยน');
+  const current=t.proposals.find(x=>x.id===id);const item={
+    id:id||newId(),category:$('tripProposalCategory').value,status:$('tripProposalStatus').value,title,place:$('tripProposalPlace').value.trim(),date:$('tripProposalDate').value,
+    amount,currency,exchangeRate:currency===p.currency?1:exchangeRate,people:Math.max(1,Number($('tripProposalPeople').value||1)),proposedBy:$('tripProposalBy').value,
+    link:safeExternalUrl($('tripProposalLink').value),note:$('tripProposalNote').value.trim(),votes:Array.isArray(current?.votes)?current.votes:[],comments:Array.isArray(current?.comments)?current.comments:[],
+    createdAt:current?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()
+  };
+  if(current)Object.assign(current,item);else t.proposals.unshift(item);saveProjects();closeDialogById('tripProposalDialog');renderTripPlanner();showToast(current?'แก้ไขข้อเสนอแล้ว':'เพิ่มข้อเสนอแล้ว');
+}
+function setTripProposalStatus(id,status){const p=projectById();const item=ensureTravelPlan(p).proposals.find(x=>x.id===id);if(!item)return;item.status=status;item.updatedAt=new Date().toISOString();saveProjects();renderTripPlanner()}
+function voteTripProposal(id){
+  const p=projectById();const item=ensureTravelPlan(p).proposals.find(x=>x.id===id);if(!item)return;const voter=activeUser||p.owner||'ผู้ใช้';item.votes=Array.isArray(item.votes)?item.votes:[];
+  const idx=item.votes.indexOf(voter);if(idx>=0)item.votes.splice(idx,1);else item.votes.push(voter);saveProjects();renderTripPlanner();
+}
+function addTripProposalComment(id){
+  const p=projectById();const item=ensureTravelPlan(p).proposals.find(x=>x.id===id);if(!item)return;const text=prompt('แสดงความคิดเห็นหรือเพิ่มข้อมูล');if(!text?.trim())return;
+  item.comments=Array.isArray(item.comments)?item.comments:[];item.comments.push({id:newId(),by:activeUser||p.owner||'ผู้ใช้',text:text.trim(),createdAt:new Date().toISOString()});saveProjects();renderTripPlanner();
+}
+function deleteTripProposal(id){const p=projectById();if(!confirm('ลบข้อเสนอนี้หรือไม่?'))return;const t=ensureTravelPlan(p);t.proposals=t.proposals.filter(x=>x.id!==id);saveProjects();renderTripPlanner()}
+function setTripProposalFilter(filter){tripProposalFilter=filter;renderTripPlanner()}
+function openTripItinerary(id=''){
+  const p=projectById();if(!p)return;const item=ensureTravelPlan(p).itinerary.find(x=>x.id===id);$('tripItineraryId').value=item?.id||'';
+  $('tripItineraryDate').value=item?.date||p.start||today();$('tripItineraryTime').value=item?.time||'';$('tripItineraryTitle').value=item?.title||'';$('tripItineraryPlace').value=item?.place||'';
+  $('tripItineraryBy').innerHTML=tripMemberOptions(p,item?.proposedBy||p.members?.[0]?.id||'');$('tripItineraryNote').value=item?.note||'';openDialogById('tripItineraryDialog');
+}
+function saveTripItinerary(){
+  const p=projectById();if(!p)return;const t=ensureTravelPlan(p);const id=$('tripItineraryId').value;const title=$('tripItineraryTitle').value.trim();if(!title)return alert('กรุณาระบุกิจกรรมหรือสถานที่');
+  const current=t.itinerary.find(x=>x.id===id);const item={id:id||newId(),date:$('tripItineraryDate').value||p.start||today(),time:$('tripItineraryTime').value,title,place:$('tripItineraryPlace').value.trim(),proposedBy:$('tripItineraryBy').value,note:$('tripItineraryNote').value.trim(),createdAt:current?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+  if(current)Object.assign(current,item);else t.itinerary.push(item);saveProjects();closeDialogById('tripItineraryDialog');renderTripPlanner();showToast('บันทึกแผนรายวันแล้ว');
+}
+function deleteTripItinerary(id){const p=projectById();if(!confirm('ลบแผนรายการนี้หรือไม่?'))return;const t=ensureTravelPlan(p);t.itinerary=t.itinerary.filter(x=>x.id!==id);saveProjects();renderTripPlanner()}
+function renderTripPlanner(){
+  const p=projectById();if(!p)return;const t=ensureTravelPlan(p);const activeMembers=(p.members||[]).filter(m=>m.active!==false);const actual=(p.expenses||[]).reduce((s,e)=>s+expenseBaseAmount(e),0);
+  const relevant=t.proposals.filter(x=>x.status!=='rejected');const estimated=relevant.reduce((s,x)=>s+tripProposalBaseAmount(p,x),0);const approved=t.proposals.filter(x=>['approved','booked'].includes(x.status)).reduce((s,x)=>s+tripProposalBaseAmount(p,x),0);
+  const emergency=estimated*(Math.max(0,t.emergencyPercent||0)/100);$('tripEstimatedTotal').textContent=projectCurrency(p,estimated+emergency);$('tripApprovedTotal').textContent=projectCurrency(p,approved);$('tripActualTotal').textContent=projectCurrency(p,actual);
+  $('tripPerPerson').textContent=projectCurrency(p,(estimated+emergency)/Math.max(1,activeMembers.length));
+  const parts=[t.destination,t.cities,p.start&&p.end?`${p.start} – ${p.end}`:(p.start||p.end),`${activeMembers.length} คน`].filter(Boolean);$('tripOverviewText').textContent=parts.join(' · ')||'เพิ่มประเทศ เมือง และงบประมาณเพื่อเริ่มวางแผนร่วมกัน';
+  $('tripProposalCount').textContent=`${t.proposals.length} ข้อเสนอ · ${t.proposals.reduce((s,x)=>s+(x.votes?.length||0),0)} คะแนน`;
+  const filters=[['all','ทั้งหมด'],...TRIP_CATEGORIES];$('tripProposalFilters').innerHTML=filters.map(([key,label])=>`<button type="button" class="${tripProposalFilter===key?'active':''}" onclick="setTripProposalFilter('${key}')">${label}</button>`).join('');
+  const list=t.proposals.filter(x=>tripProposalFilter==='all'||x.category===tripProposalFilter).sort((a,b)=>{
+    const rank={booked:0,approved:1,shortlisted:2,proposed:3,rejected:4};return (rank[a.status]??9)-(rank[b.status]??9)||String(a.date||'9999').localeCompare(String(b.date||'9999'));
+  });
+  $('tripProposalList').innerHTML=list.length?list.map(x=>{
+    const base=tripProposalBaseAmount(p,x),url=safeExternalUrl(x.link),voted=(x.votes||[]).includes(activeUser||p.owner||'ผู้ใช้');
+    return `<article class="travel-proposal"><div class="travel-proposal-top"><div><span class="travel-status ${x.status}">${TRIP_STATUS_LABELS[x.status]||x.status}</span><div class="travel-proposal-title">${escapeHtml(x.title)}</div><div class="travel-proposal-meta">${tripCategoryLabel(x.category)}${x.place?` · ${escapeHtml(x.place)}`:''}${x.date?` · ${x.date}`:''}<br>เสนอโดย ${escapeHtml(tripMemberName(p,x.proposedBy))} · ครอบคลุม ${Number(x.people||1)} คน${x.note?`<br>${escapeHtml(x.note)}`:''}</div></div><div class="travel-proposal-cost">${projectCurrency({currency:x.currency||p.currency},x.amount)}${x.currency!==p.currency?`<div class="muted">≈ ${projectCurrency(p,base)}</div>`:''}</div></div>
+    ${(x.comments||[]).slice(-3).map(c=>`<div class="travel-comment"><strong>${escapeHtml(c.by)}:</strong> ${escapeHtml(c.text)}</div>`).join('')}
+    <div class="travel-proposal-actions"><button class="btn btn-light ${voted?'travel-vote':''}" onclick="voteTripProposal('${x.id}')">👍 ${(x.votes||[]).length}</button><button class="btn btn-light" onclick="addTripProposalComment('${x.id}')">💬 ${(x.comments||[]).length}</button>${url?`<a class="btn btn-light" href="${escapeHtml(url)}" target="_blank" rel="noopener">เปิดลิงก์</a>`:''}<button class="btn btn-light" onclick="openTripProposal('${x.id}')">แก้ไข</button>${x.status==='proposed'?`<button class="btn btn-light" onclick="setTripProposalStatus('${x.id}','shortlisted')">เข้ารอบ</button>`:''}${x.status!=='approved'&&x.status!=='booked'?`<button class="btn btn-primary" onclick="setTripProposalStatus('${x.id}','approved')">อนุมัติ</button>`:''}${x.status==='approved'?`<button class="btn btn-dark" onclick="setTripProposalStatus('${x.id}','booked')">จองแล้ว</button>`:''}<button class="btn btn-danger" onclick="deleteTripProposal('${x.id}')">ลบ</button></div></article>`;
+  }).join(''):'<div class="travel-empty">ยังไม่มีข้อเสนอ กด “เสนอรายการ” เพื่อให้สมาชิกช่วยกันเพิ่มโรงแรม เที่ยวบิน ร้านอาหาร หรือสถานที่เที่ยว</div>';
+  const itinerary=[...t.itinerary].sort((a,b)=>`${a.date||''} ${a.time||''}`.localeCompare(`${b.date||''} ${b.time||''}`));
+  $('tripItineraryList').innerHTML=itinerary.length?itinerary.map(x=>`<div class="travel-itinerary-item"><div class="travel-itinerary-time">${x.date||'-'}<br>${x.time||''}</div><div><strong>${escapeHtml(x.title)}</strong>${x.place?`<div class="muted">📍 ${escapeHtml(x.place)}</div>`:''}${x.note?`<div class="muted">${escapeHtml(x.note)}</div>`:''}<div class="muted">เสนอโดย ${escapeHtml(tripMemberName(p,x.proposedBy))}</div></div><button class="btn btn-light" onclick="openTripItinerary('${x.id}')">แก้ไข</button><button class="btn btn-danger" onclick="deleteTripItinerary('${x.id}')">ลบ</button></div>`).join(''):'<div class="travel-empty">ยังไม่มีแผนรายวัน</div>';
+  const categoryTotals=TRIP_CATEGORIES.map(([key,label])=>({key,label,total:relevant.filter(x=>x.category===key).reduce((s,x)=>s+tripProposalBaseAmount(p,x),0)})).filter(x=>x.total>0);const max=Math.max(1,...categoryTotals.map(x=>x.total));
+  $('tripBudgetByCategory').innerHTML=categoryTotals.length?categoryTotals.map(x=>`<div class="travel-budget-row"><div class="travel-budget-head"><span>${x.label}</span><strong>${projectCurrency(p,x.total)}</strong></div><div class="travel-budget-bar"><div style="width:${Math.min(100,x.total/max*100)}%"></div></div></div>`).join(''):'<div class="travel-empty">ยังไม่มีประมาณการ</div>';
+  const budget=t.targetBudget||0;const remaining=budget-(estimated+emergency);$('tripImportantInfo').innerHTML=`<div class="travel-overview">${t.transportRef?`<span>✈️ ${escapeHtml(t.transportRef)}</span>`:''}${t.accommodation?`<span>🏨 ${escapeHtml(t.accommodation)}</span>`:''}${budget?`<span>🎯 งบ ${projectCurrency(p,budget)}</span><span class="${remaining>=0?'income':'expense'}">${remaining>=0?'เหลือ':'เกิน'} ${projectCurrency(p,Math.abs(remaining))}</span>`:''}<span>🧰 สำรอง ${Number(t.emergencyPercent||0)}%</span></div>${t.importantNote?`<div class="muted" style="white-space:pre-wrap">${escapeHtml(t.importantNote)}</div>`:'<div class="muted">ยังไม่มีข้อมูลสำคัญ</div>'}`;
+}
+async function shareTripPlan(){
+  const p=projectById();if(!p)return;const t=ensureTravelPlan(p);const relevant=t.proposals.filter(x=>['shortlisted','approved','booked'].includes(x.status));const estimated=t.proposals.filter(x=>x.status!=='rejected').reduce((s,x)=>s+tripProposalBaseAmount(p,x),0);
+  const text=[`✈️ ${p.name}`,t.destination||'',t.cities||'',p.start||p.end?`วันที่ ${p.start||'-'} ถึง ${p.end||'-'}`:'',`ประมาณการ ${projectCurrency(p,estimated)}`,`สมาชิก ${(p.members||[]).filter(m=>m.active!==false).map(m=>m.name).join(', ')}`,'',...relevant.slice(0,20).map(x=>`• ${TRIP_STATUS_LABELS[x.status]}: ${x.title} ${projectCurrency(p,tripProposalBaseAmount(p,x))}`)].filter(Boolean).join('\n');
+  const shareUrl=new URL(location.href);shareUrl.searchParams.set('page','projectDetail');shareUrl.searchParams.set('project',p.id);shareUrl.searchParams.set('tab','travel');
+  try{if(navigator.share)await navigator.share({title:p.name,text,url:shareUrl.href});else{await navigator.clipboard.writeText(`${text}\n\n${shareUrl.href}`);showToast('คัดลอกสรุปและลิงก์ทริปแล้ว')}}catch(err){if(err?.name!=='AbortError'){console.warn(err);alert(`${text}\n\n${shareUrl.href}`)}}
+}
 
 function openMemberManager(){
   renderMemberManager();

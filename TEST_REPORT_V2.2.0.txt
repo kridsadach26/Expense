@@ -1,0 +1,32 @@
+Harmony Haven v2.2.0 Test Report
+
+ตรวจสอบแล้ว
+- JavaScript syntax: PASS (node --check)
+- HTML duplicate IDs: PASS
+- Travel Planner element references: PASS
+- Duplicate top-level function names: PASS
+- Existing SQL migrations unchanged: PASS
+- Existing project expense, calendar, category and cloud structure preserved
+
+รายการที่ตรวจเชิงโครงสร้าง
+- สร้างโปรเจกต์ทั่วไปยังคงใช้งานได้
+- สร้างโปรเจกต์เที่ยวต่างประเทศมี travelPlan เริ่มต้น
+- โปรเจกต์เดิมเปิดโหมดทริปได้
+- ข้อเสนอเก็บอยู่ใน project.travelPlan.proposals
+- แผนรายวันเก็บอยู่ใน project.travelPlan.itinerary
+- ข้อมูลรวมอยู่ใน Cloud State เดิม ไม่ต้องเพิ่ม SQL
+- Deep link รองรับ project และ tab=travel
+
+ข้อจำกัดการทดสอบ
+- Browser ในสภาพแวดล้อมสร้างไฟล์ถูกนโยบายระบบบล็อกการเปิด localhost/file URL
+- จึงตรวจด้วย static validation และ JavaScript parser แทน
+- หลัง Deploy ควรทดสอบบน Vercel จริง 1 รอบตาม checklist ในไฟล์นี้
+
+Checklist หลัง Deploy
+1. สร้างโปรเจกต์ประเภทเที่ยวต่างประเทศ
+2. เปิดแท็บวางแผนทริป
+3. เพิ่มข้อเสนอ 1 รายการ
+4. โหวต แสดงความคิดเห็น และเปลี่ยนสถานะ
+5. เพิ่มแผนรายวัน
+6. รีเฟรชหน้า ตรวจว่าข้อมูลยังอยู่
+7. เปิดลิงก์แชร์จากผู้ใช้ที่มีสิทธิ์อีกคน
