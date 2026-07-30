@@ -358,9 +358,9 @@
 
 
 
-    /* Travel planner v2.2.0 */
+    /* Travel planner v2.2.1 */
     .travel-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:999px;background:#eaf5ff;color:#1967a3;font-size:12px;font-weight:800}
-    .travel-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+    .travel-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
     .travel-summary-card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:13px}
     .travel-summary-card span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
     .travel-summary-card strong{font-size:20px}
@@ -395,7 +395,25 @@
     .trip-form-grid .full{grid-column:1/-1}
     .trip-member-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
     .trip-member-checks label{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:9px}
-    @media(max-width:800px){.travel-summary-grid{grid-template-columns:1fr 1fr}.travel-layout{grid-template-columns:1fr}.trip-form-grid{grid-template-columns:1fr}.trip-form-grid .full{grid-column:auto}.travel-proposal-top{flex-direction:column}.travel-proposal-cost{text-align:left}.travel-itinerary-item{grid-template-columns:70px 1fr}.travel-itinerary-item>button{grid-column:2}}
+    .trip-image-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .trip-image-preview,.trip-proposal-images{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-top:9px}
+    .trip-image-preview-item{position:relative;min-width:0}
+    .trip-image-preview img,.trip-proposal-images img{width:100%;height:92px;object-fit:cover;border-radius:11px;border:1px solid var(--line);background:#f2f3f5;cursor:pointer}
+    .trip-image-preview-item button{position:absolute;right:4px;top:4px;border:0;border-radius:999px;background:rgba(170,27,38,.9);color:#fff;width:28px;height:28px;font-weight:900;cursor:pointer}
+    .trip-fund-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}
+    .trip-fund-stat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+    .trip-fund-stat>div{background:#f7f8fa;border-radius:12px;padding:10px}
+    .trip-fund-stat span{display:block;color:var(--muted);font-size:12px}.trip-fund-stat strong{display:block;margin-top:4px}
+    .trip-fund-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+    .trip-fund-row:last-child{border-bottom:0}
+    .trip-fund-badge{display:inline-flex;align-items:center;gap:4px;background:#e9f8ef;color:#187342;border-radius:999px;padding:3px 7px;font-size:11px;font-weight:800}
+    .trip-fund-reconcile{display:grid;gap:7px;margin-top:10px}
+    .trip-fund-reconcile-row{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:10px;background:#f7f8fa}
+    #tripImageViewerDialog{max-width:min(94vw,900px);background:#111;border:0;padding:10px}
+    #tripImageViewerDialog img{display:block;max-width:100%;max-height:82vh;margin:auto;border-radius:8px}
+    #tripImageViewerDialog .dialog-head{background:#111;color:#fff;border:0}
+    #tripImageViewerDialog .dialog-head .btn{background:#fff}
+    @media(max-width:800px){.travel-summary-grid{grid-template-columns:1fr 1fr}.travel-layout{grid-template-columns:1fr}.trip-form-grid{grid-template-columns:1fr}.trip-form-grid .full{grid-column:auto}.travel-proposal-top{flex-direction:column}.travel-proposal-cost{text-align:left}.travel-itinerary-item{grid-template-columns:70px 1fr}.travel-itinerary-item>button{grid-column:2}.trip-fund-stat{grid-template-columns:1fr}.trip-image-preview,.trip-proposal-images{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
 </style>
 </head>
@@ -704,6 +722,7 @@
             <button class="btn btn-light" type="button" onclick="openTripSettings()">ตั้งค่าทริป</button>
             <button class="btn btn-primary" type="button" onclick="openTripProposal()">+ เสนอรายการ</button>
             <button class="btn btn-light" type="button" onclick="openTripItinerary()">+ เพิ่มแผนรายวัน</button>
+            <button class="btn btn-light" type="button" onclick="openTripFundContribution()">💰 รับเงินกองกลาง</button>
             <button class="btn btn-light" type="button" onclick="shareTripPlan()">แชร์แผน</button>
           </div>
         </div>
@@ -712,6 +731,9 @@
           <div class="travel-summary-card"><span>อนุมัติ / จองแล้ว</span><strong id="tripApprovedTotal">฿0</strong></div>
           <div class="travel-summary-card"><span>ใช้จริง</span><strong id="tripActualTotal">฿0</strong></div>
           <div class="travel-summary-card"><span>ประมาณต่อคน</span><strong id="tripPerPerson">฿0</strong></div>
+          <div class="travel-summary-card"><span>รับเข้ากองกลาง</span><strong id="tripFundTotal">฿0</strong></div>
+          <div class="travel-summary-card"><span>ใช้จากกองกลาง</span><strong id="tripFundSpent">฿0</strong></div>
+          <div class="travel-summary-card"><span>กองกลางคงเหลือ</span><strong id="tripFundBalance">฿0</strong></div>
         </div>
         <div class="travel-layout">
           <div>
@@ -726,7 +748,13 @@
             </div>
           </div>
           <div>
-            <div class="travel-panel"><h3>ประมาณการตามหมวด</h3><div id="tripBudgetByCategory"></div></div>
+            <div class="travel-panel">
+              <div class="trip-fund-head"><div><h3 style="margin:0">เงินกองกลาง</h3><div id="tripFundHolderText" class="muted"></div></div><button class="btn btn-primary" type="button" onclick="openTripFundContribution()">+ รับเงิน</button></div>
+              <div id="tripFundMetrics"></div>
+              <div id="tripFundContributionList"></div>
+              <div id="tripFundReconciliation"></div>
+            </div>
+            <div class="travel-panel" style="margin-top:14px"><h3>ประมาณการตามหมวด</h3><div id="tripBudgetByCategory"></div></div>
             <div class="travel-panel" style="margin-top:14px"><h3>ข้อมูลสำคัญ</h3><div id="tripImportantInfo"></div></div>
           </div>
         </div>
@@ -1065,6 +1093,7 @@
       <div class="project-expense-section-title">การแบ่งค่าใช้จ่าย</div>
       <div class="project-expense-grid">
         <div><label>คนจ่าย</label><select id="projectExpensePayer"></select></div>
+        <div id="projectFundSourceWrap" class="hidden"><label>แหล่งเงิน</label><select id="projectFundSource"><option value="central">เงินกองกลาง</option><option value="personal">เงินส่วนตัวผู้จ่าย</option></select><div id="projectFundSourceHint" class="muted" style="margin-top:5px"></div></div>
         <div><label>วิธีแบ่ง</label><select id="projectSplitMode"><option value="equal">หารเท่ากัน</option><option value="custom">กำหนดยอดเอง</option></select></div>
         <div class="full"><label>เลือกร่วมหาร</label><div id="projectParticipantChecks" class="project-participant-grid"></div></div>
         <div id="customSplitWrap" class="full hidden">
@@ -1147,6 +1176,7 @@
     <div><label>เงินสำรองฉุกเฉิน (%)</label><input id="tripEmergencyPercent" type="number" min="0" max="100" step="1" value="10"></div>
     <div><label>เลขเที่ยวบิน / การเดินทางหลัก</label><input id="tripTransportRef" placeholder="เช่น FD634 / FD637"></div>
     <div><label>ที่พักหลัก</label><input id="tripAccommodation" placeholder="ชื่อโรงแรมหรือที่พัก"></div>
+    <div class="full"><label>ผู้ถือเงินกองกลาง / คนพาเที่ยวและจ่ายเงิน</label><select id="tripFundHolder"></select><div class="muted" style="margin-top:5px">เงินที่สมาชิกโอนมาจะบันทึกว่าอยู่กับบุคคลนี้ และค่าใช้จ่ายที่เลือก “จ่ายจากกองกลาง” จะนำไปหักยอดกองกลาง</div></div>
     <div class="full"><label>ข้อมูลสำคัญ</label><textarea id="tripImportantNote" placeholder="เช่น วีซ่า ประกัน เบอร์ติดต่อฉุกเฉิน จุดนัดพบ"></textarea></div>
     <div class="full" style="text-align:right"><button class="btn btn-primary" type="button" onclick="saveTripSettings()">บันทึกการตั้งค่า</button></div>
   </div></div>
@@ -1168,8 +1198,38 @@
     <div><label>จำนวนคนที่ราคานี้ครอบคลุม</label><input id="tripProposalPeople" type="number" min="1" step="1" value="1"></div>
     <div class="full"><label>ลิงก์ข้อมูล / Google Maps / หน้าจอง</label><input id="tripProposalLink" type="url" placeholder="https://..."></div>
     <div class="full"><label>รายละเอียด จุดเด่น หรือเงื่อนไข</label><textarea id="tripProposalNote" placeholder="เช่น ยกเลิกฟรี รวมอาหารเช้า เดิน 5 นาทีจากสถานี"></textarea></div>
-    <div class="full" style="text-align:right"><button class="btn btn-primary" type="button" onclick="saveTripProposal()">บันทึกข้อเสนอ</button></div>
+    <div class="full">
+      <label>รูปภาพประกอบ <span class="muted">(สูงสุด 4 รูป ระบบบีบอัดอัตโนมัติ)</span></label>
+      <div class="trip-image-actions"><button class="btn btn-light" type="button" id="tripProposalCameraBtn">📷 ถ่ายรูป</button><button class="btn btn-light" type="button" id="tripProposalUploadBtn">🖼️ เลือกจากเครื่อง</button></div>
+      <input id="tripProposalImages" type="file" accept="image/*" multiple class="hidden">
+      <input id="tripProposalCamera" type="file" accept="image/*" capture="environment" class="hidden">
+      <div id="tripProposalImageMeta" class="muted" style="margin-top:7px">ยังไม่ได้แนบรูป</div>
+      <div id="tripProposalImagePreview" class="trip-image-preview"></div>
+    </div>
+    <div class="full" style="text-align:right"><button id="tripProposalSaveBtn" class="btn btn-primary" type="button" onclick="saveTripProposal()">บันทึกข้อเสนอ</button></div>
   </div></div>
+</dialog>
+
+<dialog id="tripFundContributionDialog">
+  <div class="dialog-head"><strong id="tripFundContributionTitle">รับเงินกองกลาง</strong><button class="btn btn-light" type="button" onclick="closeDialogById('tripFundContributionDialog')">ปิด</button></div>
+  <div class="dialog-body"><div class="trip-form-grid">
+    <input id="tripFundContributionId" type="hidden">
+    <div><label>สมาชิกที่ออกเงิน</label><select id="tripFundContributor"></select></div>
+    <div><label>ผู้รับและถือเงิน</label><select id="tripFundReceivedBy"></select></div>
+    <div><label>วันที่รับเงิน</label><input id="tripFundDate" type="date"></div>
+    <div><label>ช่องทาง</label><select id="tripFundMethod"><option value="transfer">โอนเงิน</option><option value="cash">เงินสด</option><option value="other">อื่น ๆ</option></select></div>
+    <div><label>จำนวนเงิน</label><input id="tripFundAmount" type="number" min="0" step="0.01" inputmode="decimal"></div>
+    <div><label>สกุลเงิน</label><select id="tripFundCurrency"></select></div>
+    <div class="full"><label>เรทเป็นสกุลหลักของโปรเจกต์</label><input id="tripFundRate" type="number" min="0" step="0.000001" value="1" inputmode="decimal"><div id="tripFundRateHint" class="muted" style="margin-top:5px"></div></div>
+    <div class="full"><label>หมายเหตุ</label><textarea id="tripFundNote" placeholder="เช่น เงินกองกลางรอบแรก / โอนเข้าบัญชี..."></textarea></div>
+    <div class="full muted">รายการนี้เป็นการเคลื่อนย้ายเงินเข้ากองกลาง ไม่ถูกนับเป็นรายรับหรือค่าใช้จ่ายซ้ำ</div>
+    <div class="full" style="text-align:right"><button id="tripFundSaveBtn" class="btn btn-primary" type="button" onclick="saveTripFundContribution()">บันทึกรับเงิน</button></div>
+  </div></div>
+</dialog>
+
+<dialog id="tripImageViewerDialog">
+  <div class="dialog-head"><strong>รูปภาพประกอบ</strong><button class="btn btn-light" type="button" onclick="closeDialogById('tripImageViewerDialog')">ปิด</button></div>
+  <div class="dialog-body"><img id="tripImageViewer" alt="รูปภาพประกอบแผนทริป"></div>
 </dialog>
 
 <dialog id="tripItineraryDialog">
@@ -1206,6 +1266,6 @@
 <dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="closeDialogById('notificationCenterDialog')">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
 <div id="toastStack" class="toast-stack"></div>
 
-<script src="/assets/harmony-app-v2.js?v=2.2.0" defer></script>
+<script src="/assets/harmony-app-v2.js?v=2.2.1" defer></script>
 </body>
 </html>
