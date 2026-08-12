@@ -247,6 +247,7 @@ let creditCards = safeParseStorage('home-expense-cards',[]);
 let projects = safeParseStorage('home-expense-projects',[]);
 let tripProposalFilter='all';
 let tripProposalImagesData=[];
+let projectSettlementDialogContext={fromId:'',toId:'',limit:0};
 let calendarItems = safeParseStorage('home-expense-calendar',[]);
 let appNotifications = safeParseStorage('home-expense-notifications',[]);
 let calendarViewDate=new Date();let selectedCalendarDate=today();let calendarFilter='all';
@@ -1230,6 +1231,8 @@ function renderProjectDetail(){
   renderProjectExpenses();
   renderProjectBalances();
   renderProjectSettlements();
+  renderProjectSettlementProgress();
+  renderProjectSettlementHistory();
   renderProjectSettlementHeadline();
   renderProjectPending();
 }
@@ -1723,25 +1726,35 @@ function deleteProjectExpense(id){
   if(!confirm('ลบรายการนี้หรือไม่?'))return;
   p.expenses=p.expenses.filter(e=>e.id!==id);saveProjects();renderProjectDetail();
 }
+function projectSettlementRecords(p,{includeVoid=false}={}){
+  if(!Array.isArray(p?.settlements))p.settlements=[];
+  return p.settlements.filter(item=>{
+    const amount=Number(item?.amount||0);
+    if(!item?.fromId||!item?.toId||item.fromId===item.toId||!Number.isFinite(amount)||amount<=0)return false;
+    return includeVoid||item.status!=='void';
+  });
+}
+function projectSettlementMemberName(p,id,fallback='-'){
+  return p?.members?.find(m=>m.id===id)?.name||fallback||id||'-';
+}
+function projectSettlementMemberOptions(p,selected=''){
+  return (p?.members||[]).map(m=>`<option value="${escapeHtml(m.id)}" ${m.id===selected?'selected':''}>${escapeHtml(m.name)}${m.active===false?' (ออกจากโปรเจกต์แล้ว)':''}</option>`).join('');
+}
+function projectSettlementMethodLabel(method){return {transfer:'โอนเงิน',cash:'เงินสด',wallet:'Wallet / QR',other:'อื่น ๆ'}[method]||'อื่น ๆ'}
 function calculateProjectBalances(p){
   const map={};
-  (p.members||[]).forEach(m=>map[m.id]={member:m,personalPaid:0,centralContributed:0,owed:0,centralCustody:0,paid:0,net:0});
+  (p.members||[]).forEach(m=>map[m.id]={member:m,personalPaid:0,centralContributed:0,owed:0,centralCustody:0,settlementPaid:0,settlementReceived:0,paid:0,net:0});
   const isTrip=!!(p&&(p.type==='international_trip'||p.travelPlan));
   const t=isTrip?ensureTravelPlan(p):null;
 
-  // ค่าใช้จ่ายทุกประเภทสร้าง "ภาระรับผิดชอบ" ให้สมาชิกตาม shares เสมอ
-  // แต่ฝั่งเงินที่จ่ายจริงจะแยกเป็นเงินส่วนตัว หรือเงินกองกลาง เพื่อไม่คิดซ้ำ
+  // ค่าใช้จ่ายสร้างภาระรับผิดชอบตาม shares เสมอ ส่วนเงินที่จ่ายจริงแยกเป็นส่วนตัว/กองกลาง
   (p.expenses||[]).forEach(e=>{
     const base=expenseBaseAmount(e);
     (e.shares||[]).forEach(share=>{if(map[share.memberId])map[share.memberId].owed+=Number(share.amount||0)});
     if(isTrip&&e.fundSource==='central'){
       const custodianId=e.payerId||defaultTripFundHolderId(p,t);
-      // เงินกองกลางถูกจ่ายออกจากเงินที่ผู้ถือเงินกำลังดูแล
-      // ถ้าติดลบ แปลว่าคนนั้นสำรองเงินส่วนตัวออกแทนกองกลาง
       if(map[custodianId])map[custodianId].centralCustody-=base;
-    }else if(map[e.payerId]){
-      map[e.payerId].personalPaid+=base;
-    }
+    }else if(map[e.payerId])map[e.payerId].personalPaid+=base;
   });
 
   if(isTrip){
@@ -1755,24 +1768,32 @@ function calculateProjectBalances(p){
 
   Object.values(map).forEach(x=>{
     x.paid=x.personalPaid+x.centralContributed;
-    // เงินกองกลางที่ยังถืออยู่ไม่ใช่เงินของผู้ถือ จึงต้องหักออกจากเครดิตของคนนั้น
-    // หาก centralCustody ติดลบ จะกลายเป็นเครดิตเพราะสำรองเงินออกแทนกองกลาง
     x.net=x.paid-x.owed-x.centralCustody;
+  });
+
+  // เงินที่สมาชิกโอนเคลียร์กันแล้วไม่ใช่รายรับ/รายจ่ายใหม่ แต่ลดลูกหนี้-เจ้าหนี้ของทั้งสองฝ่าย
+  projectSettlementRecords(p).forEach(item=>{
+    const amount=Number(item.amount||0);
+    if(map[item.fromId]){map[item.fromId].settlementPaid+=amount;map[item.fromId].net+=amount}
+    if(map[item.toId]){map[item.toId].settlementReceived+=amount;map[item.toId].net-=amount}
   });
   return map;
 }
 function renderProjectBalances(){
   const p=projectById(),map=calculateProjectBalances(p),isTrip=!!(p&&(p.type==='international_trip'||p.travelPlan));
   $('projectBalances').innerHTML=Object.values(map).map(x=>{
+    const settled=[];
+    if(x.settlementPaid>0.005)settled.push(`เคลียร์แล้วจ่าย ${projectCurrency(p,x.settlementPaid)}`);
+    if(x.settlementReceived>0.005)settled.push(`เคลียร์แล้วรับ ${projectCurrency(p,x.settlementReceived)}`);
     if(!isTrip){
-      return `<div class="member-balance"><div><strong>${escapeHtml(x.member.name)}</strong><div class="muted">จ่ายจริง ${projectCurrency(p,x.personalPaid)} · รับผิดชอบ ${projectCurrency(p,x.owed)}</div></div><strong class="${x.net>=0?'income':'expense'}">${x.net>=0?'ต้องได้คืน ':'ต้องจ่าย '}${projectCurrency(p,Math.abs(x.net))}</strong></div>`;
+      return `<div class="member-balance"><div><strong>${escapeHtml(x.member.name)}</strong><div class="muted">จ่ายจริง ${projectCurrency(p,x.personalPaid)} · รับผิดชอบ ${projectCurrency(p,x.owed)}${settled.length?` · ${settled.join(' · ')}`:''}</div></div><strong class="${x.net>=0?'income':'expense'}">${x.net>=0?'ต้องได้คืน ':'ต้องจ่าย '}${projectCurrency(p,Math.abs(x.net))}</strong></div>`;
     }
     const custody=x.centralCustody>0.005
       ?`<span>ถือกองกลาง ${projectCurrency(p,x.centralCustody)}</span>`
       :x.centralCustody<-0.005?`<span>สำรองแทนกองกลาง ${projectCurrency(p,Math.abs(x.centralCustody))}</span>`:'';
-    return `<div class="member-balance"><div><strong>${escapeHtml(x.member.name)}</strong><div class="member-balance-breakdown"><span>จ่ายส่วนตัว ${projectCurrency(p,x.personalPaid)}</span><span>ส่งเข้ากองกลาง ${projectCurrency(p,x.centralContributed)}</span><span>รับผิดชอบ ${projectCurrency(p,x.owed)}</span>${custody}</div></div><strong class="${x.net>=0?'income':'expense'}">${x.net>=0?'ควรได้รับสุทธิ ':'ต้องจ่ายสุทธิ '}${projectCurrency(p,Math.abs(x.net))}</strong></div>`;
+    return `<div class="member-balance"><div><strong>${escapeHtml(x.member.name)}</strong><div class="member-balance-breakdown"><span>จ่ายส่วนตัว ${projectCurrency(p,x.personalPaid)}</span><span>ส่งเข้ากองกลาง ${projectCurrency(p,x.centralContributed)}</span><span>รับผิดชอบ ${projectCurrency(p,x.owed)}</span>${custody}${settled.map(v=>`<span>${escapeHtml(v)}</span>`).join('')}</div></div><strong class="${x.net>=0?'income':'expense'}">${x.net>=0?'ควรได้รับสุทธิ ':'ต้องจ่ายสุทธิ '}${projectCurrency(p,Math.abs(x.net))}</strong></div>`;
   }).join('')||'<div class="empty">ยังไม่มีสมาชิก</div>';
-  if(isTrip)$('projectBalances').insertAdjacentHTML('afterbegin','<div class="project-accounting-note">ยอดสุทธิด้านล่างรวมเงินที่สมาชิกจ่ายเอง เงินที่ส่งเข้ากองกลาง ค่าใช้จ่ายที่ใช้จากกองกลาง และเงินกองกลางที่ยังอยู่กับผู้ถือเงินแล้ว จึงใช้ยอดนี้เป็นฐานเดียวกับแท็บ “สรุปการโอน”</div>');
+  if(isTrip)$('projectBalances').insertAdjacentHTML('afterbegin','<div class="project-accounting-note">ยอดสุทธิรวมเงินส่วนตัว เงินกองกลาง เงินคงเหลือที่ผู้ถือเงินกำลังถือ และยอดที่สมาชิกเคลียร์กันไปแล้ว จึงตรงกับแท็บ “สรุปการโอน” เสมอ</div>');
 }
 function calculateSettlements(p){
   const vals=Object.values(calculateProjectBalances(p));
@@ -1789,16 +1810,108 @@ function calculateSettlements(p){
   return result;
 }
 function projectSettlementTransferTotal(p){return calculateSettlements(p).reduce((sum,row)=>sum+Number(row.amount||0),0)}
+function projectSettlementStats(p){
+  const completed=projectSettlementRecords(p).reduce((sum,item)=>sum+Number(item.amount||0),0);
+  const outstanding=projectSettlementTransferTotal(p);
+  const total=completed+outstanding;
+  return {completed,outstanding,total,percent:total>0?Math.min(100,completed/total*100):(completed>0?100:0),count:projectSettlementRecords(p).length};
+}
+function renderProjectSettlementProgress(){
+  const p=projectById(),el=$('projectSettlementProgress');if(!p||!el)return;
+  const stats=projectSettlementStats(p);
+  if(stats.total<=0.005){el.innerHTML=`<div class="settlement-progress-head"><div><h3>สถานะการเคลียร์ยอด</h3><div class="muted" style="margin-top:4px">ตอนนี้ยังไม่มียอดค้างระหว่างสมาชิก</div></div><div class="settlement-progress-amount"><strong class="income">✓ เรียบร้อย</strong><span>${stats.count} รายการชำระ</span></div></div>`;return}
+  el.innerHTML=`<div class="settlement-progress-head"><div><h3>สถานะการเคลียร์ยอด</h3><div class="muted" style="margin-top:4px">ติดตามยอดที่จ่ายแล้วและยอดที่ยังต้องเคลียร์</div></div><div class="settlement-progress-amount"><strong>${Math.round(stats.percent)}%</strong><span>เคลียร์แล้ว</span></div></div><div class="settlement-progress-track"><div style="width:${stats.percent}%"></div></div><div class="settlement-progress-meta"><span>ชำระแล้ว <strong class="income">${projectCurrency(p,stats.completed)}</strong></span><span>คงเหลือ <strong class="expense">${projectCurrency(p,stats.outstanding)}</strong></span><span>${stats.count} รายการชำระ</span></div>`;
+}
 function renderProjectSettlements(){
   const p=projectById(),rows=calculateSettlements(p),isTrip=!!(p&&(p.type==='international_trip'||p.travelPlan));
   let context='';
   if(isTrip){
     const t=ensureTravelPlan(p),fund=tripFundSummary(p,t),holderId=defaultTripFundHolderId(p,t),holder=holderId?tripMemberName(p,holderId):'-';
     const balanceLabel=fund.balance>=0?`คงเหลือ ${projectCurrency(p,fund.balance)}`:`ใช้เกินกองกลาง ${projectCurrency(p,Math.abs(fund.balance))}`;
-    context=`<div class="trip-settlement-context"><strong>สรุปนี้รวมเงินกองกลางแล้ว</strong><div class="muted" style="margin-top:4px">รับเข้ากองกลาง ${projectCurrency(p,fund.total)} · ใช้จากกองกลาง ${projectCurrency(p,fund.spent)} · ${balanceLabel} · ผู้ถือเงิน ${escapeHtml(holder)}</div><div class="muted" style="margin-top:4px">ระบบถือว่าเงินกองกลางคงเหลือที่ยังอยู่กับผู้ถือเงินเป็นเงินของกลุ่ม หากเคลียร์ยอดตอนนี้ ระบบจะรวมเงินส่วนนี้เข้าไปด้วยโดยอัตโนมัติ</div></div>`;
+    context=`<div class="trip-settlement-context"><strong>สรุปนี้รวมเงินกองกลางและยอดที่เคลียร์แล้ว</strong><div class="muted" style="margin-top:4px">รับเข้ากองกลาง ${projectCurrency(p,fund.total)} · ใช้จากกองกลาง ${projectCurrency(p,fund.spent)} · ${balanceLabel} · ผู้ถือเงิน ${escapeHtml(holder)}</div></div>`;
   }
-  $('projectSettlements').innerHTML=context+(rows.length?rows.map(s=>`<div class="settlement-line"><div><strong>${escapeHtml(s.from)}</strong> จ่ายให้ <strong>${escapeHtml(s.to)}</strong></div><strong>${projectCurrency(p,s.amount)}</strong></div>`).join(''):'<div class="empty">ไม่มีเงินต้องโอนระหว่างกัน ณ ตอนนี้</div>');
+  const list=rows.length?rows.map(s=>`<div class="settlement-task"><div class="settlement-task-main"><button type="button" class="settlement-check" role="checkbox" aria-checked="false" title="ติ๊กว่าชำระเต็มยอดแล้ว" onclick="confirmProjectSettlementFull('${s.fromId}','${s.toId}',${Number(s.amount)})">✓</button><div class="settlement-route"><strong>${escapeHtml(s.from)}</strong><span class="settlement-route-arrow">→</span><strong>${escapeHtml(s.to)}</strong><div class="muted">ยอดที่แนะนำสำหรับเคลียร์ตอนนี้</div></div><div class="settlement-task-amount"><strong>${projectCurrency(p,s.amount)}</strong><span>คงค้าง</span></div></div><div class="settlement-task-actions"><button class="btn btn-primary" type="button" onclick="confirmProjectSettlementFull('${s.fromId}','${s.toId}',${Number(s.amount)})">✓ ชำระครบ</button><button class="btn btn-light" type="button" onclick="openProjectSettlementPayment('${s.fromId}','${s.toId}',${Number(s.amount)})">จ่ายบางส่วน</button><button class="btn btn-light" type="button" onclick="openProjectSettlementPayment('${s.fromId}','${s.toId}')">เปลี่ยนคู่ชำระ</button></div></div>`).join(''):'<div class="empty">✓ ไม่มีเงินต้องโอนระหว่างกัน ณ ตอนนี้</div>';
+  $('projectSettlements').innerHTML=context+list;
 }
+function projectSettlementPairLimit(p,fromId,toId){
+  const map=calculateProjectBalances(p),from=map[fromId],to=map[toId];
+  const fromDue=from?Math.max(0,-Number(from.net||0)):0,toDue=to?Math.max(0,Number(to.net||0)):0;
+  return {fromDue,toDue,limit:fromId&&toId&&fromId!==toId?Math.min(fromDue,toDue):0};
+}
+function updateProjectSettlementDialog({resetAmount=false}={}){
+  const p=projectById();if(!p)return;
+  const fromId=$('projectSettlementFrom')?.value||'',toId=$('projectSettlementTo')?.value||'';
+  const info=projectSettlementPairLimit(p,fromId,toId);projectSettlementDialogContext={fromId,toId,limit:info.limit};
+  const hint=$('projectSettlementDialogHint'),amount=$('projectSettlementAmount'),save=$('projectSettlementSaveBtn');
+  if(resetAmount&&amount)amount.value=info.limit>0.005?Number(info.limit.toFixed(2)):'';
+  const fromName=projectSettlementMemberName(p,fromId),toName=projectSettlementMemberName(p,toId);
+  if(!fromId||!toId||fromId===toId){hint.className='settlement-dialog-hint invalid';hint.textContent='กรุณาเลือกผู้จ่ายและผู้รับคนละคน';if(save)save.disabled=true;return}
+  if(info.limit<=0.005){hint.className='settlement-dialog-hint invalid';hint.innerHTML=`คู่นี้ไม่ใช่ทิศทางยอดค้างปัจจุบัน — ${escapeHtml(fromName)} ไม่มีหนี้ที่ต้องจ่ายให้ฝั่งเจ้าหนี้ หรือ ${escapeHtml(toName)} ไม่มียอดที่ต้องรับ`;if(save)save.disabled=true;return}
+  hint.className='settlement-dialog-hint valid';hint.innerHTML=`${escapeHtml(fromName)} ยังต้องจ่ายรวม ${projectCurrency(p,info.fromDue)} · ${escapeHtml(toName)} ยังควรได้รับรวม ${projectCurrency(p,info.toDue)}<br><strong>ยอดสูงสุดที่บันทึกสำหรับคู่นี้: ${projectCurrency(p,info.limit)}</strong>`;
+  if(save)save.disabled=false;
+}
+function openProjectSettlementPayment(fromId='',toId='',amount=''){
+  const p=projectById();if(!p)return;if(p.status==='cancelled')return alert('โปรเจกต์นี้ถูกยกเลิกแล้ว');
+  const rows=calculateSettlements(p),fallback=rows[0]||{};
+  fromId=fromId||fallback.fromId||p.members?.[0]?.id||'';toId=toId||fallback.toId||p.members?.find(m=>m.id!==fromId)?.id||'';
+  $('projectSettlementFrom').innerHTML=projectSettlementMemberOptions(p,fromId);$('projectSettlementTo').innerHTML=projectSettlementMemberOptions(p,toId);
+  $('projectSettlementDate').value=today();$('projectSettlementMethod').value='transfer';$('projectSettlementNote').value='';
+  updateProjectSettlementDialog({resetAmount:!amount});if(amount)$('projectSettlementAmount').value=Number(amount).toFixed(2);
+  openDialogById('projectSettlementDialog');
+}
+function setProjectSettlementFraction(fraction){
+  const limit=Number(projectSettlementDialogContext.limit||0);if(limit<=0)return;
+  $('projectSettlementAmount').value=(limit*Math.max(0,Math.min(1,Number(fraction||0)))).toFixed(2);
+}
+function swapProjectSettlementMembers(){
+  const from=$('projectSettlementFrom'),to=$('projectSettlementTo');if(!from||!to)return;
+  const a=from.value;from.value=to.value;to.value=a;updateProjectSettlementDialog({resetAmount:true});
+}
+function recordProjectSettlementPayment({fromId,toId,amount,date=today(),method='transfer',note=''}){
+  const p=projectById();if(!p)return false;if(p.status==='cancelled'){alert('โปรเจกต์นี้ถูกยกเลิกแล้ว');return false}
+  const info=projectSettlementPairLimit(p,fromId,toId),value=Number(amount||0);
+  if(!Number.isFinite(value)||value<=0){alert('กรุณาระบุยอดชำระมากกว่า 0');return false}
+  if(info.limit<=0.005){alert('คู่นี้ไม่มีทิศทางยอดค้างให้ชำระแล้ว กรุณาเลือกผู้จ่ายและผู้รับใหม่');return false}
+  if(value>info.limit+0.01){alert(`ยอดชำระสูงกว่ายอดที่คู่นี้สามารถเคลียร์ได้ (${projectCurrency(p,info.limit)})`);return false}
+  if(!Array.isArray(p.settlements))p.settlements=[];
+  p.settlements.push({id:newId(),fromId,toId,fromName:projectSettlementMemberName(p,fromId),toName:projectSettlementMemberName(p,toId),amount:value,date:date||today(),method,note:String(note||'').trim(),status:'completed',createdAt:new Date().toISOString(),createdBy:activeUser||''});
+  saveProjects();renderProjectBalances();renderProjectSettlements();renderProjectSettlementProgress();renderProjectSettlementHistory();renderProjectSettlementHeadline();
+  return true;
+}
+function saveProjectSettlementPayment(){
+  const fromId=$('projectSettlementFrom').value,toId=$('projectSettlementTo').value,amount=Number($('projectSettlementAmount').value||0);
+  const btn=$('projectSettlementSaveBtn');if(btn?.disabled)return;
+  if(recordProjectSettlementPayment({fromId,toId,amount,date:$('projectSettlementDate').value||today(),method:$('projectSettlementMethod').value,note:$('projectSettlementNote').value})){
+    closeDialogById('projectSettlementDialog');showToast(amount+0.005>=projectSettlementDialogContext.limit?'บันทึกว่าชำระครบแล้ว':'บันทึกการชำระบางส่วนแล้ว');
+  }
+}
+function confirmProjectSettlementFull(fromId,toId,amount){
+  const p=projectById();if(!p)return;const info=projectSettlementPairLimit(p,fromId,toId),value=Math.min(Number(amount||0),info.limit);
+  if(value<=0.005)return renderProjectSettlements();
+  const from=projectSettlementMemberName(p,fromId),to=projectSettlementMemberName(p,toId);
+  if(!confirm(`ยืนยันว่า ${from} จ่ายให้ ${to} จำนวน ${projectCurrency(p,value)} แล้วหรือไม่?`))return;
+  if(recordProjectSettlementPayment({fromId,toId,amount:value,date:today(),method:'transfer',note:'ชำระเต็มยอดจากสรุป'}))showToast('✓ เคลียร์ยอดรายการนี้แล้ว');
+}
+function voidProjectSettlement(id){
+  const p=projectById();if(!p)return;const item=(p.settlements||[]).find(x=>x.id===id);if(!item||item.status==='void')return;
+  if(!confirm(`ยกเลิกรายการชำระ ${projectCurrency(p,item.amount)} หรือไม่? ยอดค้างจะถูกคำนวณกลับให้อัตโนมัติ`))return;
+  item.status='void';item.voidedAt=new Date().toISOString();item.voidedBy=activeUser||'';saveProjects();renderProjectBalances();renderProjectSettlements();renderProjectSettlementProgress();renderProjectSettlementHistory();renderProjectSettlementHeadline();showToast('ยกเลิกรายการชำระแล้ว');
+}
+function renderProjectSettlementHistory(){
+  const p=projectById(),el=$('projectSettlementHistory');if(!p||!el)return;
+  const rows=projectSettlementRecords(p,{includeVoid:true}).slice().sort((a,b)=>String(b.createdAt||b.date||'').localeCompare(String(a.createdAt||a.date||'')));
+  el.innerHTML=rows.length?rows.map(item=>{
+    const isVoid=item.status==='void',from=projectSettlementMemberName(p,item.fromId,item.fromName),to=projectSettlementMemberName(p,item.toId,item.toName);
+    return `<div class="settlement-history-row ${isVoid?'void':''}"><div class="settlement-history-icon">${isVoid?'↶':'✓'}</div><div><strong>${escapeHtml(from)} → ${escapeHtml(to)}</strong><div class="muted">${escapeHtml(item.date||'-')} · ${escapeHtml(projectSettlementMethodLabel(item.method))}${item.note?` · ${escapeHtml(item.note)}`:''}${isVoid?' · ยกเลิกแล้ว':''}</div></div><div class="settlement-history-amount"><strong>${projectCurrency(p,item.amount)}</strong><span class="muted">${isVoid?'ไม่นับในยอด':'ชำระแล้ว'}</span></div><div class="settlement-history-actions">${isVoid?'':`<button class="btn btn-danger" type="button" onclick="voidProjectSettlement('${item.id}')">ยกเลิก</button>`}</div></div>`;
+  }).join(''):'<div class="empty">ยังไม่มีประวัติการชำระระหว่างสมาชิก</div>';
+}
+$('projectSettlementFrom')?.addEventListener('change',()=>updateProjectSettlementDialog({resetAmount:true}));
+$('projectSettlementTo')?.addEventListener('change',()=>updateProjectSettlementDialog({resetAmount:true}));
+$('projectSettlementSwap')?.addEventListener('click',swapProjectSettlementMembers);
+$('projectSettlementAmount')?.addEventListener('input',()=>{
+  const btn=$('projectSettlementSaveBtn'),value=Number($('projectSettlementAmount').value||0),limit=Number(projectSettlementDialogContext.limit||0);
+  if(btn)btn.disabled=limit<=0.005||value<=0||value>limit+0.01;
+});
 function renderProjectSettlementHeadline(){
   const p=projectById();if(!p)return;
   const isTrip=!!(p.type==='international_trip'||p.travelPlan);
