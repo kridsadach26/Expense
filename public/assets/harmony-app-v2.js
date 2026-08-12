@@ -1230,6 +1230,7 @@ function renderProjectDetail(){
   renderProjectExpenses();
   renderProjectBalances();
   renderProjectSettlements();
+  renderProjectSettlementHeadline();
   renderProjectPending();
 }
 document.querySelectorAll('[data-project-tab]').forEach(btn=>btn.addEventListener('click',()=>{
@@ -1408,8 +1409,8 @@ function renderTripFund(p,t){
   $('tripFundBalance').className=summary.balance>=0?'income':'expense';$('tripFundHolderText').textContent=holderId?`เงินอยู่กับ ${holderName}`:'ยังไม่ได้เลือกผู้ถือเงินกองกลาง';
   $('tripFundMetrics').innerHTML=`<div class="trip-fund-stat"><div><span>รับเข้ากองกลาง</span><strong>${projectCurrency(p,summary.total)}</strong></div><div><span>ใช้จากกองกลาง</span><strong>${projectCurrency(p,summary.spent)}</strong></div><div><span>${summary.balance>=0?'คงเหลือ':'สำรองจ่ายเกินกองกลาง'}</span><strong class="${summary.balance>=0?'income':'expense'}">${projectCurrency(p,Math.abs(summary.balance))}</strong></div></div>`;
   $('tripFundContributionList').innerHTML=summary.contributions.length?summary.contributions.map(item=>`<div class="trip-fund-row"><div><strong>${escapeHtml(tripMemberName(p,item.contributorId))}</strong> ส่งให้ ${escapeHtml(tripMemberName(p,item.receivedById))}<div class="muted">${item.date||'-'} · ${item.method==='cash'?'เงินสด':item.method==='other'?'อื่น ๆ':'โอนเงิน'}${item.note?` · ${escapeHtml(item.note)}`:''}</div></div><div style="text-align:right"><strong>${projectCurrency({currency:item.currency||p.currency},item.amount)}</strong>${item.currency!==p.currency?`<div class="muted">≈ ${projectCurrency(p,tripContributionBaseAmount(item))}</div>`:''}<div><button class="btn btn-light" type="button" onclick="openTripFundContribution('${item.id}')">แก้ไข</button> <button class="btn btn-danger" type="button" onclick="deleteTripFundContribution('${item.id}')">ลบ</button></div></div></div>`).join(''):'<div class="travel-empty">ยังไม่มีสมาชิกส่งเงินเข้ากองกลาง</div>';
-  const rows=summary.members.filter(row=>row.contributed||row.responsible);
-  $('tripFundReconciliation').innerHTML=rows.length?`<h4 style="margin:14px 0 8px">สรุปกองกลางรายคน</h4><div class="trip-fund-reconcile">${rows.map(row=>`<div class="trip-fund-reconcile-row"><div><strong>${escapeHtml(row.member.name)}</strong><div class="muted">ส่ง ${projectCurrency(p,row.contributed)} · รับผิดชอบ ${projectCurrency(p,row.responsible)}</div></div><strong class="${row.net>=0?'income':'expense'}">${row.net>=0?'ควรได้คืน/เหลือ ':'ควรเติม '}${projectCurrency(p,Math.abs(row.net))}</strong></div>`).join('')}</div><div class="muted" style="margin-top:8px">คำนวณจากรายการที่เลือก “เงินกองกลาง” เท่านั้น เงินส่วนตัวผู้จ่ายจะแยกไปสรุปในแท็บยอดคงเหลือ</div>`:'<div class="muted" style="margin-top:10px">เมื่อมีเงินเข้าและค่าใช้จ่ายจากกองกลาง ระบบจะแสดงว่าแต่ละคนส่งมาเท่าไร ใช้ในส่วนของตัวเองเท่าไร และควรเติมหรือรับคืนเท่าไร</div>';
+  const rows=summary.members.filter(row=>row.contributed||row.responsible),unified=calculateProjectBalances(p);
+  $('tripFundReconciliation').innerHTML=rows.length?`<h4 style="margin:14px 0 8px">สรุปกองกลางรายคน</h4><div class="trip-fund-reconcile">${rows.map(row=>{const finalNet=unified[row.member.id]?.net||0;return `<div class="trip-fund-reconcile-row"><div><strong>${escapeHtml(row.member.name)}</strong><div class="muted">ส่ง ${projectCurrency(p,row.contributed)} · รับผิดชอบจากกองกลาง ${projectCurrency(p,row.responsible)}</div></div><strong class="${finalNet>=0?'income':'expense'}">${finalNet>=0?'สุทธิทั้งโปรเจกต์ควรได้ ':'สุทธิทั้งโปรเจกต์ต้องจ่าย '}${projectCurrency(p,Math.abs(finalNet))}</strong></div>`}).join('')}</div><div class="muted" style="margin-top:8px">สถานะสุทธิด้านขวารวมเงินส่วนตัว เงินกองกลาง และเงินคงเหลือที่ผู้ถือเงินกำลังถืออยู่แล้ว โดยใช้สูตรเดียวกับหัวสรุปและแท็บ “สรุปการโอน”</div>`:'<div class="muted" style="margin-top:10px">เมื่อมีเงินเข้าและค่าใช้จ่ายจากกองกลาง ระบบจะแสดงยอดรายคนและเชื่อมเข้ากับสรุปการโอนของโปรเจกต์อัตโนมัติ</div>';
 }
 
 function openTripItinerary(id=''){
@@ -1723,18 +1724,55 @@ function deleteProjectExpense(id){
   p.expenses=p.expenses.filter(e=>e.id!==id);saveProjects();renderProjectDetail();
 }
 function calculateProjectBalances(p){
-  const map={};p.members.forEach(m=>map[m.id]={member:m,paid:0,owed:0,net:0});
-  (p.expenses||[]).filter(e=>e.fundSource!=='central').forEach(e=>{
-    if(map[e.payerId])map[e.payerId].paid+=expenseBaseAmount(e);
-    (e.shares||[]).forEach(s=>{if(map[s.memberId])map[s.memberId].owed+=Number(s.amount||0);});
+  const map={};
+  (p.members||[]).forEach(m=>map[m.id]={member:m,personalPaid:0,centralContributed:0,owed:0,centralCustody:0,paid:0,net:0});
+  const isTrip=!!(p&&(p.type==='international_trip'||p.travelPlan));
+  const t=isTrip?ensureTravelPlan(p):null;
+
+  // ค่าใช้จ่ายทุกประเภทสร้าง "ภาระรับผิดชอบ" ให้สมาชิกตาม shares เสมอ
+  // แต่ฝั่งเงินที่จ่ายจริงจะแยกเป็นเงินส่วนตัว หรือเงินกองกลาง เพื่อไม่คิดซ้ำ
+  (p.expenses||[]).forEach(e=>{
+    const base=expenseBaseAmount(e);
+    (e.shares||[]).forEach(share=>{if(map[share.memberId])map[share.memberId].owed+=Number(share.amount||0)});
+    if(isTrip&&e.fundSource==='central'){
+      const custodianId=e.payerId||defaultTripFundHolderId(p,t);
+      // เงินกองกลางถูกจ่ายออกจากเงินที่ผู้ถือเงินกำลังดูแล
+      // ถ้าติดลบ แปลว่าคนนั้นสำรองเงินส่วนตัวออกแทนกองกลาง
+      if(map[custodianId])map[custodianId].centralCustody-=base;
+    }else if(map[e.payerId]){
+      map[e.payerId].personalPaid+=base;
+    }
   });
-  Object.values(map).forEach(x=>x.net=x.paid-x.owed);
+
+  if(isTrip){
+    (t.fundContributions||[]).forEach(item=>{
+      const base=tripContributionBaseAmount(item);
+      if(map[item.contributorId])map[item.contributorId].centralContributed+=base;
+      const receiverId=item.receivedById||defaultTripFundHolderId(p,t);
+      if(map[receiverId])map[receiverId].centralCustody+=base;
+    });
+  }
+
+  Object.values(map).forEach(x=>{
+    x.paid=x.personalPaid+x.centralContributed;
+    // เงินกองกลางที่ยังถืออยู่ไม่ใช่เงินของผู้ถือ จึงต้องหักออกจากเครดิตของคนนั้น
+    // หาก centralCustody ติดลบ จะกลายเป็นเครดิตเพราะสำรองเงินออกแทนกองกลาง
+    x.net=x.paid-x.owed-x.centralCustody;
+  });
   return map;
 }
 function renderProjectBalances(){
-  const p=projectById(),map=calculateProjectBalances(p);
-  const centralCount=tripCentralExpenses(p).length;
-  $('projectBalances').innerHTML=(centralCount?`<div class="muted" style="margin-bottom:10px">💰 ค่าใช้จ่ายจากกองกลาง ${centralCount} รายการจะแยกคำนวณในแท็บวางแผนทริป เพื่อไม่ให้คิดซ้ำกับเงินส่วนตัว</div>`:'')+Object.values(map).map(x=>`<div class="member-balance"><div><strong>${x.member.name}</strong><div class="muted">จ่ายจริง ${projectCurrency(p,x.paid)} · รับผิดชอบ ${projectCurrency(p,x.owed)}</div></div><strong class="${x.net>=0?'income':'expense'}">${x.net>=0?'ต้องได้คืน ':'ต้องจ่าย '}${projectCurrency(p,Math.abs(x.net))}</strong></div>`).join('');
+  const p=projectById(),map=calculateProjectBalances(p),isTrip=!!(p&&(p.type==='international_trip'||p.travelPlan));
+  $('projectBalances').innerHTML=Object.values(map).map(x=>{
+    if(!isTrip){
+      return `<div class="member-balance"><div><strong>${escapeHtml(x.member.name)}</strong><div class="muted">จ่ายจริง ${projectCurrency(p,x.personalPaid)} · รับผิดชอบ ${projectCurrency(p,x.owed)}</div></div><strong class="${x.net>=0?'income':'expense'}">${x.net>=0?'ต้องได้คืน ':'ต้องจ่าย '}${projectCurrency(p,Math.abs(x.net))}</strong></div>`;
+    }
+    const custody=x.centralCustody>0.005
+      ?`<span>ถือกองกลาง ${projectCurrency(p,x.centralCustody)}</span>`
+      :x.centralCustody<-0.005?`<span>สำรองแทนกองกลาง ${projectCurrency(p,Math.abs(x.centralCustody))}</span>`:'';
+    return `<div class="member-balance"><div><strong>${escapeHtml(x.member.name)}</strong><div class="member-balance-breakdown"><span>จ่ายส่วนตัว ${projectCurrency(p,x.personalPaid)}</span><span>ส่งเข้ากองกลาง ${projectCurrency(p,x.centralContributed)}</span><span>รับผิดชอบ ${projectCurrency(p,x.owed)}</span>${custody}</div></div><strong class="${x.net>=0?'income':'expense'}">${x.net>=0?'ควรได้รับสุทธิ ':'ต้องจ่ายสุทธิ '}${projectCurrency(p,Math.abs(x.net))}</strong></div>`;
+  }).join('')||'<div class="empty">ยังไม่มีสมาชิก</div>';
+  if(isTrip)$('projectBalances').insertAdjacentHTML('afterbegin','<div class="project-accounting-note">ยอดสุทธิด้านล่างรวมเงินที่สมาชิกจ่ายเอง เงินที่ส่งเข้ากองกลาง ค่าใช้จ่ายที่ใช้จากกองกลาง และเงินกองกลางที่ยังอยู่กับผู้ถือเงินแล้ว จึงใช้ยอดนี้เป็นฐานเดียวกับแท็บ “สรุปการโอน”</div>');
 }
 function calculateSettlements(p){
   const vals=Object.values(calculateProjectBalances(p));
@@ -1750,9 +1788,33 @@ function calculateSettlements(p){
   }
   return result;
 }
+function projectSettlementTransferTotal(p){return calculateSettlements(p).reduce((sum,row)=>sum+Number(row.amount||0),0)}
 function renderProjectSettlements(){
-  const p=projectById(),rows=calculateSettlements(p);
-  $('projectSettlements').innerHTML=rows.length?rows.map((s,i)=>`<div class="settlement-line"><div><strong>${s.from}</strong> จ่ายให้ <strong>${s.to}</strong></div><strong>${projectCurrency(p,s.amount)}</strong></div>`).join(''):'<div class="empty">ไม่มีเงินต้องโอนระหว่างกัน</div>';
+  const p=projectById(),rows=calculateSettlements(p),isTrip=!!(p&&(p.type==='international_trip'||p.travelPlan));
+  let context='';
+  if(isTrip){
+    const t=ensureTravelPlan(p),fund=tripFundSummary(p,t),holderId=defaultTripFundHolderId(p,t),holder=holderId?tripMemberName(p,holderId):'-';
+    const balanceLabel=fund.balance>=0?`คงเหลือ ${projectCurrency(p,fund.balance)}`:`ใช้เกินกองกลาง ${projectCurrency(p,Math.abs(fund.balance))}`;
+    context=`<div class="trip-settlement-context"><strong>สรุปนี้รวมเงินกองกลางแล้ว</strong><div class="muted" style="margin-top:4px">รับเข้ากองกลาง ${projectCurrency(p,fund.total)} · ใช้จากกองกลาง ${projectCurrency(p,fund.spent)} · ${balanceLabel} · ผู้ถือเงิน ${escapeHtml(holder)}</div><div class="muted" style="margin-top:4px">ระบบถือว่าเงินกองกลางคงเหลือที่ยังอยู่กับผู้ถือเงินเป็นเงินของกลุ่ม หากเคลียร์ยอดตอนนี้ ระบบจะรวมเงินส่วนนี้เข้าไปด้วยโดยอัตโนมัติ</div></div>`;
+  }
+  $('projectSettlements').innerHTML=context+(rows.length?rows.map(s=>`<div class="settlement-line"><div><strong>${escapeHtml(s.from)}</strong> จ่ายให้ <strong>${escapeHtml(s.to)}</strong></div><strong>${projectCurrency(p,s.amount)}</strong></div>`).join(''):'<div class="empty">ไม่มีเงินต้องโอนระหว่างกัน ณ ตอนนี้</div>');
+}
+function renderProjectSettlementHeadline(){
+  const p=projectById();if(!p)return;
+  const isTrip=!!(p.type==='international_trip'||p.travelPlan);
+  const fundMetric=$('projectTripFundMetric'),clearMetric=$('projectTripClearMetric'),headline=$('projectSettlementHeadline');
+  fundMetric?.classList.toggle('hidden',!isTrip);clearMetric?.classList.toggle('hidden',!isTrip);headline?.classList.toggle('hidden',!isTrip);
+  if(!isTrip)return;
+  const t=ensureTravelPlan(p),fund=tripFundSummary(p,t),rows=calculateSettlements(p),clearTotal=rows.reduce((sum,row)=>sum+Number(row.amount||0),0);
+  const holderId=defaultTripFundHolderId(p,t),holder=holderId?tripMemberName(p,holderId):'-';
+  const fundValue=$('projectTripFundBalance'),fundLabel=$('projectTripFundMetricLabel'),clearValue=$('projectTripClearTotal');
+  if(fundLabel)fundLabel.textContent=fund.balance>=0?'กองกลางคงเหลือ':'กองกลางใช้เกิน';
+  if(fundValue){fundValue.textContent=projectCurrency(p,Math.abs(fund.balance));fundValue.className=`value ${fund.balance>=0?'income':'expense'}`}
+  if(clearValue){clearValue.textContent=projectCurrency(p,clearTotal);clearValue.className=`value ${clearTotal>0.005?'expense':'income'}`}
+  const preview=rows.slice(0,4).map(row=>`<div class="project-settlement-preview-row"><span><strong>${escapeHtml(row.from)}</strong> → ${escapeHtml(row.to)}</span><strong>${projectCurrency(p,row.amount)}</strong></div>`).join('');
+  const more=rows.length>4?`<div class="muted" style="margin-top:6px">และอีก ${rows.length-4} รายการ</div>`:'';
+  const fundBalanceText=fund.balance>=0?projectCurrency(p,fund.balance):`-${projectCurrency(p,Math.abs(fund.balance))}`;
+  $('projectSettlementHeadlineBody').innerHTML=`<div class="project-settlement-headline-head"><div><strong style="font-size:17px">💰 สรุปเคลียร์ยอดทริป ณ ตอนนี้</strong><div class="muted">รวมทั้งเงินส่วนตัวและเงินกองกลางแล้ว</div></div><button class="btn btn-light" type="button" onclick="document.querySelector('[data-project-tab=&quot;settlements&quot;]')?.click()">ดูทั้งหมด</button></div><div class="project-settlement-headline-grid"><div><span>รับเข้ากองกลาง</span><strong>${projectCurrency(p,fund.total)}</strong></div><div><span>ใช้จากกองกลาง</span><strong>${projectCurrency(p,fund.spent)}</strong></div><div><span>${fund.balance>=0?'คงเหลือกับผู้ถือเงิน':'ใช้เกินกองกลาง'}</span><strong class="${fund.balance>=0?'income':'expense'}">${fundBalanceText}</strong></div></div><div class="muted">ผู้ถือเงิน: ${escapeHtml(holder)} · หากเคลียร์ตอนนี้ต้องโอนรวม ${projectCurrency(p,clearTotal)}</div>${preview||'<div class="empty" style="padding:12px 0">ตอนนี้ทุกคนเคลียร์กันพอดี</div>'}${more}<div class="project-accounting-note">หลักการคำนวณ: เงินที่สมาชิกส่งเข้ากองกลางนับเป็นเงินที่สมาชิกคนนั้นออกแล้ว ส่วนเงินกองกลางที่ยังเหลือจะนับเป็นเงินที่ผู้ถือเงินกำลังถือแทนกลุ่ม จึงไม่สร้างค่าใช้จ่ายซ้ำและสามารถสรุป “ใครต้องจ่ายใคร” ได้ในยอดเดียว</div>`;
 }
 function closeCurrentProject(){
   const p=projectById(); if(!p)return;

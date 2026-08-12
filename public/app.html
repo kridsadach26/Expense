@@ -190,6 +190,18 @@
     .project-tabs button{border:0;background:#f1f2f5;padding:9px 12px;border-radius:10px;cursor:pointer}
     .project-tabs button.active{background:#2f333a;color:#fff}
     .settlement-line{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+    .project-settlement-headline{margin:12px 0 14px;border-left:4px solid #f59a3d}
+    .project-settlement-headline-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+    .project-settlement-headline-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+    .project-settlement-headline-grid>div{background:#f7f8fa;border-radius:11px;padding:10px}
+    .project-settlement-headline-grid span{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+    .project-settlement-headline-grid strong{font-size:16px}
+    .project-settlement-preview{display:grid;gap:7px;margin-top:10px}
+    .project-settlement-preview-row{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 10px;border-radius:10px;background:#fff7ed}
+    .project-accounting-note{margin-top:10px;padding:9px 10px;border-radius:10px;background:#f3f6fa;color:var(--muted);font-size:12px;line-height:1.55}
+    .member-balance-breakdown{display:flex;flex-wrap:wrap;gap:5px 10px;margin-top:4px;font-size:12px;color:var(--muted)}
+    .member-balance-breakdown span{white-space:nowrap}
+    .trip-settlement-context{margin-bottom:12px;padding:11px 12px;border-radius:12px;background:#f7f8fa}
     .status-dot{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--green)}
     .status-dot.closed{background:var(--muted)}
     .qr-note{font-size:12px;color:var(--muted);margin-top:8px}
@@ -197,6 +209,7 @@
       .project-grid{grid-template-columns:1fr 1fr}
       .project-summary{grid-template-columns:1fr 1fr}
       .share-box{grid-template-columns:1fr}
+      .project-settlement-headline-grid{grid-template-columns:1fr 1fr}
     }
     @media(max-width:560px){
       .project-grid{grid-template-columns:1fr}
@@ -358,7 +371,7 @@
 
 
 
-    /* Travel planner v2.2.1 */
+    /* Travel planner v2.2.2 */
     .travel-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:999px;background:#eaf5ff;color:#1967a3;font-size:12px;font-weight:800}
     .travel-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
     .travel-summary-card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:13px}
@@ -685,7 +698,11 @@
         <div class="card metric"><div class="label">จำนวนรายการ</div><div id="projectCount" class="value">0</div></div>
         <div class="card metric"><div class="label">สมาชิก</div><div id="projectMemberCount" class="value">0</div></div>
         <div class="card metric"><div class="label">สถานะ</div><div id="projectStatus" class="value" style="font-size:18px">กำลังดำเนินการ</div></div>
+        <div id="projectTripFundMetric" class="card metric hidden"><div id="projectTripFundMetricLabel" class="label">กองกลางคงเหลือ</div><div id="projectTripFundBalance" class="value income">฿0</div></div>
+        <div id="projectTripClearMetric" class="card metric hidden"><div class="label">ยอดต้องเคลียร์ตอนนี้</div><div id="projectTripClearTotal" class="value">฿0</div></div>
       </div>
+
+      <div id="projectSettlementHeadline" class="card project-settlement-headline hidden"><div id="projectSettlementHeadlineBody"></div></div>
 
       <div class="project-tabs">
         <button class="active" data-project-tab="expenses">ค่าใช้จ่าย</button>
@@ -1266,6 +1283,6 @@
 <dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="closeDialogById('notificationCenterDialog')">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
 <div id="toastStack" class="toast-stack"></div>
 
-<script src="/assets/harmony-app-v2.js?v=2.2.1" defer></script>
+<script src="/assets/harmony-app-v2.js?v=2.2.2" defer></script>
 </body>
 </html>
