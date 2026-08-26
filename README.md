@@ -107,6 +107,8 @@ git push -u origin main
 3. เพิ่ม Environment Variables:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `CRON_SECRET`
 4. กด Deploy
 
 ## 7. ติดตั้งเป็นแอปบนมือถือ
@@ -152,3 +154,9 @@ Chrome → เมนู → Install app หรือ Add to Home screen
 ## Vercel Build
 
 แพ็กเกจนี้ใช้ JavaScript/JSX และไม่ต้องติดตั้ง TypeScript
+
+## Supabase Keep Alive
+
+ระบบมี API `GET /api/cron/keep-alive` และ Vercel Cron เรียกวันละครั้ง เพื่อทำ Query ขนาดเล็กแบบอ่านอย่างเดียว โดยไม่แก้ไขข้อมูล
+
+ก่อน Deploy ต้องเพิ่ม Environment Variable ฝั่ง Server ชื่อ `CRON_SECRET` ใน Vercel และตรวจว่ามี `SUPABASE_SERVICE_ROLE_KEY` อยู่แล้ว รายละเอียดทั้งหมดอยู่ใน `SUPABASE_KEEP_ALIVE_SETUP.md`
