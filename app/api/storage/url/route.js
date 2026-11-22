@@ -10,6 +10,7 @@ export async function GET(request) {
     if (!auth.ok) return NextResponse.json({ error: auth.message }, { status: auth.status });
     const url = new URL(request.url);
     const bucket = url.searchParams.get('bucket') || 'receipts';
+    if (bucket === 'trip-itineraries') return NextResponse.json({ error: 'ใช้เมนูกำหนดการของโปรเจกต์' }, { status: 403 });
     const path = url.searchParams.get('path') || '';
     if (!path) return NextResponse.json({ error: 'ไม่พบตำแหน่งไฟล์' }, { status: 400 });
     const admin = createAdminSupabase();

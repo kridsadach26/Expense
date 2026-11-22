@@ -2015,7 +2015,7 @@ async function requestProjectShareLink(project){
     method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId:project.id})
   });
   if(!res.ok||!data.token)throw new Error(data.error||'สร้างลิงก์ไม่ได้');
-  const link=new URL('/project-guest.html','https://expense-six-tau.vercel.app');
+  const link=new URL(data.short?'/t':'/project-guest.html','https://expense-six-tau.vercel.app');
   link.hash=data.token;
   return link.href;
 }
@@ -2050,12 +2050,25 @@ function openProjectItineraryAttachment(){
   renderProjectItineraryAttachment(project);
   openDialogById('projectItineraryAttachmentDialog');
 }
+async function uploadProjectItinerary(project,file){
+  const {res,data}=await fetchJsonWithTimeout('/api/project-share',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'upload-itinerary',projectId:project.id,name:file.name,size:file.size})
+  });
+  if(!res.ok)throw new Error(data.error||'เตรียมอัปโหลดไฟล์ไม่สำเร็จ');
+  const uploaded=await fetch(data.uploadUrl,{
+    method:'PUT',headers:{'Content-Type':data.file.type,'Cache-Control':'max-age=0'},
+    body:file,signal:AbortSignal.timeout(180000)
+  });
+  if(!uploaded.ok)throw new Error('อัปโหลดไฟล์ไม่สำเร็จ กรุณาลองใหม่');
+  return data.file;
+}
 async function updateProjectShareFile(remove=false){
   const project=projectById(),input=$('projectShareFile'),file=input.files[0];
   const status=$('projectItineraryStatus'),save=$('projectItinerarySave');
   if(!project||project.owner!==activeUser||project.status==='cancelled'||save.disabled)return;
-  if(!remove&&(!file||!/\.html?$/i.test(file.name)||!file.size||file.size>500000)){
-    status.textContent='เลือกไฟล์ HTML ขนาดไม่เกิน 500 KB';
+  if(!remove&&(!file||!/\.(html?|pdf|jpe?g|png|webp|docx)$/i.test(file.name)||!file.size||file.size>25*1024*1024)){
+    status.textContent='เลือกไฟล์ HTML, PDF, JPG, PNG, WebP หรือ DOCX ขนาดไม่เกิน 25 MB';
     return;
   }
   if(cloudSaving||cloudVersion===null){
@@ -2066,7 +2079,7 @@ async function updateProjectShareFile(remove=false){
   controls.forEach(control=>control.disabled=true);
   status.textContent='กำลังบันทึก…';
   try{
-    const attachment=remove?null:{name:file.name.slice(0,120),html:await file.text()};
+    const attachment=remove?null:await uploadProjectItinerary(project,file);
     if(projectById()!==project)return;
     if(cloudSaving)throw new Error('กำลังบันทึก Cloud กรุณาลองอีกครั้ง');
     const previous=project.sharedItinerary;

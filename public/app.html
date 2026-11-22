@@ -1218,8 +1218,8 @@
   <div class="dialog-head"><strong>ไฟล์กำหนดการ</strong><button id="projectItineraryClose" class="btn btn-light" type="button" onclick="closeDialogById('projectItineraryAttachmentDialog')">ปิด</button></div>
   <div class="dialog-body">
     <p id="projectShareFileName"></p>
-    <label for="projectShareFile">เลือกไฟล์ HTML · ไม่เกิน 500 KB</label>
-    <input id="projectShareFile" type="file" accept=".html,.htm,text/html">
+    <label for="projectShareFile">HTML, PDF, JPG, PNG, WebP หรือ DOCX · ไม่เกิน 25 MB</label>
+    <input id="projectShareFile" type="file" accept=".html,.htm,.pdf,.jpg,.jpeg,.png,.webp,.docx">
     <p id="projectItineraryStatus" role="status"></p>
     <div class="actions">
       <button id="projectItinerarySave" class="btn btn-primary" type="button" onclick="updateProjectShareFile()">บันทึกไฟล์แนบ</button>
@@ -1328,6 +1328,6 @@
 <dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="closeDialogById('notificationCenterDialog')">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
 <div id="toastStack" class="toast-stack"></div>
 
-<script src="/assets/harmony-app-v2.js?v=2.4.5" defer></script>
+<script src="/assets/harmony-app-v2.js?v=2.5.0" defer></script>
 </body>
 </html>

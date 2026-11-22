@@ -1,5 +1,6 @@
+import { itineraryBucket, itineraryFileType, itineraryObjectIsValid, itineraryPrefix, maxItineraryBytes } from '@/lib/project-itinerary.mjs';
 import { projectShareOverview } from '@/lib/project-share-overview.mjs';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/server-admin';
 import { requireAppProfile } from '@/lib/supabase/server-auth';
@@ -22,6 +23,17 @@ function decode(token) {
   if (!timingSafeEqual(Buffer.from(signature), Buffer.from(sign(payload)))) return null;
   const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
   return claims.expires > Date.now() ? claims : null;
+}
+
+const tokenHash = token => createHash('sha256').update(token).digest('hex');
+
+async function readClaims(admin, token) {
+  if (!/^[A-Za-z0-9_-]{22}$/.test(token)) return decode(token);
+  const { data, error } = await admin.from('project_share_links')
+    .select('household_id,project_id,share_version,expires_at')
+    .eq('token_hash', tokenHash(token)).gt('expires_at', new Date().toISOString()).maybeSingle();
+  if (error) throw error;
+  return data && { householdId: data.household_id, projectId: data.project_id, shareVersion: data.share_version };
 }
 
 async function loadProject(admin, householdId, projectId) {
@@ -47,16 +59,30 @@ export async function POST(request) {
       if (!project || project.owner !== profile.display_name) {
         return response({ error: 'เฉพาะเจ้าของโปรเจกต์เท่านั้นที่สร้างลิงก์ได้' }, 403);
       }
-      const payload = Buffer.from(JSON.stringify({
-        householdId: profile.household_id,
-        projectId: project.id,
-        shareVersion: project.shareVersion || '',
-        expires: Date.now() + 30 * 86400000
-      })).toString('base64url');
-      return response({ token: payload + '.' + sign(payload) });
+      if (body.action === 'upload-itinerary') {
+        const name = String(body.name || '').replace(/[\/\\\u0000-\u001f]/g, '_').trim();
+        const type = itineraryFileType(name);
+        if (!type || name.length > 180 || !Number.isInteger(body.size) || body.size < 1 || body.size > maxItineraryBytes) {
+          return response({ error: 'กรุณาเลือกไฟล์ที่รองรับ ขนาดไม่เกิน 25 MB' }, 400);
+        }
+        const path = itineraryPrefix(profile.household_id, project.id) + randomUUID() + name.slice(name.lastIndexOf('.')).toLowerCase();
+        const { data, error: uploadError } = await admin.storage.from(itineraryBucket).createSignedUploadUrl(path);
+        if (uploadError) throw uploadError;
+        return response({ uploadUrl: data.signedUrl, file: { name, path, type } });
+      }
+      const token = randomBytes(16).toString('base64url');
+      const { error: linkError } = await admin.from('project_share_links').insert({
+        token_hash: tokenHash(token),
+        household_id: profile.household_id,
+        project_id: project.id,
+        share_version: project.shareVersion || '',
+        expires_at: new Date(Date.now() + 30 * 86400000).toISOString()
+      });
+      if (linkError) throw linkError;
+      return response({ token, short: true });
     }
 
-    const claims = decode(authorization.replace(/^Bearer /, ''));
+    const claims = await readClaims(admin, authorization.replace(/^Bearer /, ''));
     if (!claims) return response({ error: 'ลิงก์หมดอายุหรือไม่ถูกต้อง' }, 403);
     for (let attempt = 0; attempt < 4; attempt++) {
       const { data, project } = await loadProject(admin, claims.householdId, claims.projectId);
@@ -64,6 +90,15 @@ export async function POST(request) {
         return response({ error: 'ลิงก์นี้ถูกปิดแล้ว' }, 403);
       }
       const members = (project.members || []).filter(m => m.active !== false);
+      const attachment = project.sharedItinerary;
+      const stored = itineraryObjectIsValid(attachment?.path, claims.householdId, project.id);
+      if (body.action === 'itinerary-file') {
+        if (!stored) return response({ error: 'ไม่พบไฟล์กำหนดการ' }, 404);
+        const { data: file, error } = await admin.storage.from(itineraryBucket)
+          .createSignedUrl(attachment.path, 120, { download: attachment.name || true });
+        if (error) throw error;
+        return response({ url: file.signedUrl });
+      }
       if (body.action === 'view') {
         return response({
           name: project.name,
@@ -71,7 +106,9 @@ export async function POST(request) {
           open: project.status === 'active',
           members: members.map(({ id, name }) => ({ id, name })),
           overview: projectShareOverview(project),
-          itinerary: project.sharedItinerary || null
+          itinerary: stored
+            ? { name: attachment.name, type: itineraryFileType(attachment.path), stored: true }
+            : attachment?.html ? { name: attachment.name, html: attachment.html } : null
         });
       }
 

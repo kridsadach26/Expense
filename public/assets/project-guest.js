@@ -107,25 +107,85 @@ function renderOverview(project) {
   rows('payments', view.payments, item => [
     item.from + ' → ' + item.to, item.date || '', money(item.value)
   ], 'ยังไม่มีรายการชำระที่บันทึกแล้ว');
-  if (view.schedule.length) {
-    element('projectSchedule').hidden = false;
-    rows('schedule', view.schedule, item => [
-      item.title || 'กำหนดการ', [item.date, item.place].filter(Boolean).join(' · '), item.time || ''
-    ], '');
+  rows('schedule', view.schedule, item => [
+    item.title || 'กำหนดการ', [item.date, item.place].filter(Boolean).join(' · '), item.time || ''
+  ], 'ยังไม่มีแผนรายวัน');
+  for (const member of project.members) {
+    const label = document.createElement('span');
+    label.textContent = member.name;
+    element('members').append(label);
   }
-  const scheduleLink = element('scheduleLink');
-  if (view.schedule.length || project.itinerary?.html) {
-    scheduleLink.hidden = false;
-    scheduleLink.href = view.schedule.length ? '#projectSchedule' : '#itinerary';
-  }
+  if (project.itinerary && !view.schedule.length) element('scheduleLink').href = '#itinerary';
   element('projectNav').hidden = false;
   element('projectNav').addEventListener('click', event => {
     const href = event.target.closest('a')?.getAttribute('href');
     if (!href) return;
     event.preventDefault();
-    element(href.slice(1))?.scrollIntoView();
+    const target = element(href.slice(1));
+    if (target?.tagName === 'DETAILS') target.open = true;
+    target?.scrollIntoView();
   });
   element('overview').hidden = false;
+}
+
+function renderItinerary(itinerary) {
+  if (!itinerary) return;
+  const element = id => document.getElementById(id);
+  const status = element('fileStatus');
+  const open = element('showItinerary');
+  const download = element('downloadItinerary');
+  let previewUrl;
+  element('itinerary').hidden = false;
+  element('filename').textContent = itinerary.name || 'กำหนดการ';
+  const html = itinerary.type === 'text/html' || Boolean(itinerary.html);
+  const image = itinerary.type?.startsWith('image/');
+  const pdf = itinerary.type === 'application/pdf';
+  open.hidden = !html && !image && !pdf;
+  if (pdf) open.textContent = 'เตรียมเปิด PDF';
+
+  async function fileAction(button, action) {
+    button.disabled = true;
+    status.textContent = 'กำลังเปิดไฟล์…';
+    try {
+      const url = itinerary.stored ? (await send({ action: 'itinerary-file' })).url : null;
+      await action(url);
+      if (status.textContent === 'กำลังเปิดไฟล์…') status.textContent = '';
+    } catch (error) {
+      status.textContent = error.message || 'เปิดไฟล์ไม่ได้ กรุณาลองอีกครั้ง';
+    } finally {
+      button.disabled = false;
+    }
+  }
+  download.onclick = () => fileAction(download, url => {
+    const link = document.createElement('a');
+    link.href = url || URL.createObjectURL(new Blob([itinerary.html], { type: 'text/html' }));
+    link.download = itinerary.name || 'itinerary.html';
+    document.body.append(link);
+    link.click();
+    link.remove();
+    if (!url) setTimeout(() => URL.revokeObjectURL(link.href), 30000);
+  });
+  open.onclick = () => fileAction(open, async url => {
+    const response = url ? await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer' }) : null;
+    if (response && !response.ok) throw new Error('โหลดไฟล์กำหนดการไม่สำเร็จ');
+    if (html) {
+      const content = response ? await response.text() : itinerary.html;
+      const frame = element('itineraryFrame');
+      const policy = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; form-action 'none'; base-uri 'none'";
+      frame.srcdoc = '<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="' + policy + '">' + content;
+      frame.hidden = false;
+    } else {
+      const bytes = await response.arrayBuffer();
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(new Blob([bytes], { type: itinerary.type }));
+      const preview = element(image ? 'itineraryImage' : 'openPdfItinerary');
+      if (image) preview.src = previewUrl;
+      else preview.href = previewUrl;
+      preview.hidden = false;
+      if (pdf) preview.focus();
+    }
+    open.hidden = true;
+  });
 }
 
 async function initialize() {
@@ -134,19 +194,9 @@ async function initialize() {
     const project = await send({ action: 'view' });
     document.getElementById('title').textContent = project.name;
     renderOverview(project);
-    status.textContent = 'รายการที่ส่งจะรอเจ้าของโปรเจกต์อนุมัติ';
+    status.textContent = project.open ? '' : 'ทริปนี้ปิดแล้ว';
+    renderItinerary(project.itinerary);
     document.getElementById('currency').textContent = '(' + project.currency + ')';
-    if (project.itinerary?.html) {
-      document.getElementById('itinerary').hidden = false;
-      document.getElementById('filename').textContent = project.itinerary.name;
-      document.getElementById('showItinerary').onclick = () => {
-        const frame = document.getElementById('itineraryFrame');
-        const policy = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; form-action 'none'; base-uri 'none'";
-        frame.srcdoc = '<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="' + policy + '">' + project.itinerary.html;
-        frame.hidden = false;
-        document.getElementById('showItinerary').hidden = true;
-      };
-    }
     fields.memberId.add(new Option('เลือกชื่อของคุณ', ''));
     fields.toId.add(new Option('เลือกผู้รับเงิน', ''));
     for (const member of project.members) {
@@ -167,7 +217,7 @@ async function initialize() {
       fields.action.querySelector('[value="payment"]').defaultSelected = true;
     }
     form.hidden = !project.members.length;
-    document.querySelector('#projectNav a').hidden = form.hidden;
+    document.getElementById('submitLink').hidden = form.hidden;
     updateForm();
   } catch (error) {
     status.textContent = error.message;

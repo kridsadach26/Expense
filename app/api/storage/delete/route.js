@@ -9,6 +9,7 @@ export async function POST(request) {
 
     const body = await request.json();
     const bucket = typeof body.bucket === 'string' ? body.bucket : 'receipts';
+    if (bucket === 'trip-itineraries') return NextResponse.json({ error: 'ใช้เมนูกำหนดการของโปรเจกต์' }, { status: 403 });
     const paths = Array.isArray(body.paths)
       ? [...new Set(body.paths.filter((path) => typeof path === 'string' && path.trim()).map((path) => path.trim()))]
       : [];

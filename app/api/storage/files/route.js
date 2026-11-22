@@ -11,6 +11,7 @@ export async function GET(request) {
 
     const url = new URL(request.url);
     const bucket = url.searchParams.get('bucket') || 'receipts';
+    if (bucket === 'trip-itineraries') return NextResponse.json({ error: 'ใช้เมนูกำหนดการของโปรเจกต์' }, { status: 403 });
     const olderThanDays = Math.max(Number(url.searchParams.get('olderThanDays') || 0), 0);
     const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || 200), 1), 1000);
     const cutoff = olderThanDays ? new Date(Date.now() - olderThanDays * 86400000) : null;
