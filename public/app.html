@@ -758,7 +758,7 @@
 
       <div id="projectTabPending" class="project-tab-panel hidden">
         <div class="section-title"><h2>รายการจากลิงก์หรือ QR</h2></div>
-        <div class="card"><div id="projectPending"></div></div>
+        <div class="card"><button class="btn btn-light" onclick="refreshProjectInbox()">โหลดรายการใหม่</button><div id="projectPending"></div></div>
       </div>
 
       <div id="projectTabTravel" class="project-tab-panel hidden">
@@ -1202,39 +1202,23 @@
 <dialog id="projectShareDialog">
   <div class="dialog-head"><strong>แชร์โปรเจกต์</strong><button class="btn btn-light" onclick="projectShareDialog.close()">ปิด</button></div>
   <div class="dialog-body">
-    <div class="share-box">
-      <div>
-        <label>ลิงก์สำหรับเพิ่มค่าใช้จ่าย</label>
-        <input id="projectShareLink" readonly>
-        <div style="display:flex;gap:8px;margin-top:10px">
-          <button class="btn btn-primary" onclick="copyProjectLink()">คัดลอกลิงก์</button>
-          <button class="btn btn-light" onclick="simulateGuestEntry()">ทดสอบหน้าเพื่อน</button>
-        </div>
-        <div class="qr-note">เวอร์ชัน HTML เป็นการจำลอง ลิงก์ข้ามเครื่องจะทำงานจริงเมื่อเชื่อมฐานข้อมูลและนำขึ้นเว็บ</div>
-      </div>
-      <div>
-        <img id="projectQrImage" alt="QR Code">
-      </div>
+    <label for="projectShareLink">ลิงก์เดียวสำหรับผู้ร่วมทริป · ใช้ได้ 30 วัน</label>
+    <input id="projectShareLink" readonly>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="createProjectShareLink()">สร้างลิงก์</button>
+      <button class="btn btn-light" onclick="copyProjectLink()">คัดลอกลิงก์</button>
+      <button class="btn btn-light" onclick="revokeProjectShare()">ปิดลิงก์เดิมทั้งหมด</button>
+    </div>
+    <hr>
+    <label for="projectShareFile">กำหนดการ HTML · ไม่เกิน 500 KB</label>
+    <input id="projectShareFile" type="file" accept=".html,.htm,text/html">
+    <p id="projectShareFileName"></p>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="updateProjectShareFile()">บันทึกไฟล์แนบ</button>
+      <button class="btn btn-light" onclick="updateProjectShareFile(true)">นำไฟล์ออก</button>
     </div>
   </div>
 </dialog>
-
-<dialog id="guestDialog">
-  <div class="dialog-head"><strong>เพิ่มค่าใช้จ่ายจากลิงก์แชร์</strong><button class="btn btn-light" onclick="guestDialog.close()">ปิด</button></div>
-  <div class="dialog-body">
-    <div class="grid" style="grid-template-columns:1fr 1fr">
-      <div><label>คุณคือใคร</label><select id="guestMember"></select></div>
-      <div><label>คนจ่าย</label><select id="guestPayer"></select></div>
-      <div><label>วันที่</label><input id="guestDate" type="date"></div>
-      <div><label>จำนวนเงิน</label><input id="guestAmount" type="number" min="0" step="0.01"></div>
-      <div class="full"><label>รายการ</label><input id="guestExpenseName"></div>
-      <div class="full"><label>ร่วมหารกับใครบ้าง</label><div id="guestParticipants"></div></div>
-      <div class="full"><label>หมายเหตุ</label><textarea id="guestNote"></textarea></div>
-      <div class="full" style="text-align:right"><button class="btn btn-primary" onclick="submitGuestExpense()">ส่งให้เจ้าของตรวจสอบ</button></div>
-    </div>
-  </div>
-</dialog>
-
 
 <dialog id="tripSettingsDialog">
   <div class="dialog-head"><strong>ตั้งค่าทริปต่างประเทศ</strong><button class="btn btn-light" type="button" onclick="closeDialogById('tripSettingsDialog')">ปิด</button></div>
@@ -1335,6 +1319,6 @@
 <dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="closeDialogById('notificationCenterDialog')">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
 <div id="toastStack" class="toast-stack"></div>
 
-<script src="/assets/harmony-app-v2.js?v=2.3.0" defer></script>
+<script src="/assets/harmony-app-v2.js?v=2.4.0" defer></script>
 </body>
 </html>

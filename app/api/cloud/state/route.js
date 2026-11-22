@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import { NextResponse } from 'next/server';
 import { requireAppProfile } from '@/lib/supabase/server-auth';
 import { createAdminSupabase } from '@/lib/supabase/server-admin';
@@ -54,15 +55,42 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'ข้อมูลมีขนาดใหญ่เกินไป กรุณาลบรูปแบบ Base64 หรือย้ายไฟล์แนบไป Storage' }, { status: 413 });
     }
     const { admin, profile } = await householdContext(auth);
-    const { data, error } = await admin
-      .from('household_app_state')
-      .upsert({
-        household_id: profile.household_id,
-        state,
-        updated_by_profile_id: profile.id,
-      }, { onConflict: 'household_id' })
-      .select('version, updated_at')
-      .single();
+    if (!Number.isSafeInteger(body.version) || body.version < 0) {
+      return NextResponse.json({ error: 'กรุณาโหลดข้อมูล Cloud ล่าสุดก่อนบันทึก' }, { status: 409 });
+    }
+    if (body.version > 0) {
+      const { data: current, error: readError } = await admin.from('household_app_state')
+        .select('state,version').eq('household_id', profile.household_id).maybeSingle();
+      if (readError) throw readError;
+      if (Number(current?.version) !== body.version) {
+        return NextResponse.json({ error: 'Cloud มีข้อมูลใหม่ กรุณาสำรองรายการที่ยังไม่ได้บันทึกและโหลดใหม่' }, { status: 409 });
+      }
+      const incoming = new Map((Array.isArray(state.projects) ? state.projects : []).map(project => [project?.id, project]));
+      for (const project of current.state?.projects || []) {
+        if (project.owner === profile.display_name) continue;
+        const next = incoming.get(project.id);
+        const protectedFields = item => ({
+          pending: item?.pending || [],
+          itinerary: item?.sharedItinerary || null,
+          shareVersion: item?.shareVersion || '',
+          guestExpenses: (item?.expenses || []).filter(row => row.guestRequestId),
+          guestSettlements: (item?.settlements || []).filter(row => row.guestRequestId)
+        });
+        if ((next && next.owner !== project.owner) ||
+            !isDeepStrictEqual(protectedFields(project), protectedFields(next))) {
+          return NextResponse.json({ error: 'เฉพาะเจ้าของโปรเจกต์เท่านั้นที่ตรวจรายการหรือจัดการลิงก์ได้' }, { status: 403 });
+        }
+      }
+    }
+    const table = admin.from('household_app_state');
+    const changes = { state, updated_by_profile_id: profile.id };
+    const operation = body.version === 0
+      ? table.insert({ ...changes, household_id: profile.household_id })
+      : table.update(changes).eq('household_id', profile.household_id).eq('version', body.version);
+    const { data, error } = await operation.select('version, updated_at').maybeSingle();
+    if (error?.code === '23505' || (!error && !data)) {
+      return NextResponse.json({ error: 'Cloud มีข้อมูลใหม่ กรุณาสำรองรายการที่ยังไม่ได้บันทึกและโหลดใหม่' }, { status: 409 });
+    }
     if (error) throw error;
     return NextResponse.json({ ok: true, version: Number(data.version), updatedAt: data.updated_at });
   } catch (error) {

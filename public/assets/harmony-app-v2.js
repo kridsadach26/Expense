@@ -256,6 +256,9 @@ let projectExpenseImagesData = [];
 let cloudReady=false;
 let cloudSaveTimer=null;
 let cloudSaving=false;
+let cloudVersion=null;
+let cloudDirty=false;
+let cloudEditCount=0;
 let cloudSaveAgain=false;
 const cloudDataKeys=[
   'home-expense-entries','home-expense-settings','home-expense-profiles','home-expense-categories',
@@ -367,13 +370,20 @@ function applyCloudState(state={}){
 }
 function clearLegacyCloudData(){cloudDataKeys.forEach(k=>localStorage.removeItem(k));}
 async function saveCloudState(){
-  if(!cloudReady||!appLifecycle.ready)return;
+  if(!cloudReady||!appLifecycle.ready||cloudVersion===null)return false;
   if(cloudSaving){cloudSaveAgain=true;return;}
+  const edits=cloudEditCount;
+  const snapshot=structuredClone(cloudStateSnapshot());
   cloudSaving=true;setCloudStatus('กำลังบันทึก…','syncing');
   try{
-    const {res,data}=await fetchJsonWithTimeout('/api/cloud/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:cloudStateSnapshot()})});
+    const {res,data}=await fetchJsonWithTimeout('/api/cloud/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:snapshot,version:cloudVersion})});
     if(!res.ok)throw Object.assign(new Error(data.error||'บันทึกไม่สำเร็จ'),{status:res.status});
-    clearLegacyCloudData();writeCloudCache(cloudStateSnapshot());setCloudStatus('บันทึกบน Cloud แล้ว','ok');
+    cloudVersion=data.version;
+    if(edits===cloudEditCount)cloudDirty=false;
+    clearLegacyCloudData();
+    if(!cloudDirty)writeCloudCache(snapshot);
+    setCloudStatus(cloudDirty?'รอบันทึก…':'บันทึกบน Cloud แล้ว',cloudDirty?'syncing':'ok');
+    return true;
   }catch(err){
     console.error(err);setCloudStatus('Cloud มีปัญหา','error');
     reportRuntimeError(err.name==='AbortError'?'บันทึก Cloud ใช้เวลานานเกินไป ระบบจะลองใหม่เมื่อมีการเปลี่ยนแปลง':'บันทึก Cloud ไม่สำเร็จ: '+err.message,err);
@@ -384,6 +394,7 @@ async function saveCloudState(){
 }
 function queueCloudSave(){
   if(!cloudReady||!appLifecycle.ready)return;
+  cloudDirty=true;cloudEditCount++;
   clearTimeout(cloudSaveTimer);setCloudStatus('รอบันทึก…','syncing');
   cloudSaveTimer=setTimeout(saveCloudState,800);
 }
@@ -409,6 +420,7 @@ async function bootstrapCloudState(){
       setCloudStatus('ใช้งานข้อมูลแคชชั่วคราว','error');appLifecycle.booting=false;return;
     }
     if(!res.ok)throw new Error(data.error||'โหลด Cloud ไม่สำเร็จ');
+    cloudVersion=data.version;
     if(data.exists)applyCloudState(data.state||{}); else applyCloudState(legacy);
     const profileName=data.activeProfile?.name||activeUser||Object.keys(profiles||{})[0];
     if(!profileName){if(!cacheRendered){redirectToLogin('ไม่พบโปรไฟล์ที่กำลังใช้งาน');appLifecycle.booting=false;return;}}
@@ -1243,6 +1255,7 @@ document.querySelectorAll('[data-project-tab]').forEach(btn=>btn.addEventListene
   const panel=$('projectTab'+btn.dataset.projectTab.charAt(0).toUpperCase()+btn.dataset.projectTab.slice(1));
   if(panel)panel.classList.remove('hidden');
   if(btn.dataset.projectTab==='travel')renderTripPlanner();
+  if(btn.dataset.projectTab==='pending')refreshProjectInbox();
 }));
 
 
@@ -1954,52 +1967,109 @@ $('closeProjectBtn')?.addEventListener('click',closeCurrentProject);
 $('cancelProjectBtn')?.addEventListener('click',cancelCurrentProject);
 $('deleteCancelledProjectBtn')?.addEventListener('click',deleteCancelledProject);
 
+async function refreshProjectInbox(){
+  if(cloudDirty||cloudSaving||cloudVersion===null)return;
+  const edits=cloudEditCount;
+  try{
+    const {res,data}=await fetchJsonWithTimeout('/api/cloud/state',{cache:'no-store'});
+    if(!res.ok||!data.exists)throw new Error(data.error||'โหลดรายการใหม่ไม่ได้');
+    if(cloudDirty||cloudSaving||edits!==cloudEditCount||data.version<=cloudVersion)return;
+    cloudVersion=data.version;
+    applyCloudState(data.state);
+    writeCloudCache(cloudStateSnapshot());
+    renderAll();
+    if(projectById())renderProjectDetail();
+    else showPage('projects');
+  }catch(err){reportRuntimeError(err.message,err)}
+}
 function openProjectShare(){
-  const p=projectById(); if(!p)return;
-  const token=p.shareToken||(p.shareToken=Math.random().toString(36).slice(2)+Date.now().toString(36));
-  saveProjects();
-  const link=`https://example.local/project/${p.id}?invite=${token}`;
-  $('projectShareLink').value=link;
-  $('projectQrImage').src='https://api.qrserver.com/v1/create-qr-code/?size=220x220&data='+encodeURIComponent(link);
-  $('projectShareDialog').showModal();
+  const project=projectById();
+  if(!project||project.owner!==activeUser)return alert('เฉพาะเจ้าของโปรเจกต์เท่านั้นที่แชร์ได้');
+  $('projectShareLink').value='';
+  $('projectShareFile').value='';
+  $('projectShareFileName').textContent=project.sharedItinerary?.name||'ยังไม่มีไฟล์กำหนดการ';
+  openDialogById('projectShareDialog');
 }
-function copyProjectLink(){
+async function createProjectShareLink(){
+  const project=projectById();
+  try{
+    if(cloudSaving||cloudVersion===null)throw new Error('กรุณารอให้ Cloud พร้อม');
+    if(cloudDirty&&!(await saveCloudState()))throw new Error('กรุณาบันทึกโปรเจกต์ขึ้น Cloud ก่อน');
+    const {res,data}=await fetchJsonWithTimeout('/api/project-share',{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId:project.id})
+    });
+    if(!res.ok)throw new Error(data.error||'สร้างลิงก์ไม่ได้');
+    $('projectShareLink').value=new URL('/project-guest.html#'+data.token,location.origin).href;
+  }catch(err){alert(err.message)}
+}
+async function copyProjectLink(){
   const input=$('projectShareLink');
-  navigator.clipboard?.writeText(input.value).then(()=>alert('คัดลอกลิงก์แล้ว')).catch(()=>{input.select();document.execCommand('copy');alert('คัดลอกลิงก์แล้ว');});
+  if(!input.value)return alert('กรุณากดสร้างลิงก์ก่อน');
+  try{await navigator.clipboard.writeText(input.value);showToast('คัดลอกลิงก์แล้ว')}
+  catch{input.select();showToast('เลือกลิงก์แล้ว กดคัดลอกได้เลย')}
 }
-function simulateGuestEntry(){
-  const p=projectById();if(p.status!=='active')return alert('โปรเจกต์นี้ไม่เปิดรับรายการแล้ว');
-  const active=p.members.filter(m=>m.active);
-  const opts=active.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
-  $('guestMember').innerHTML=opts;$('guestPayer').innerHTML=opts;
-  $('guestDate').value=today();$('guestAmount').value='';$('guestExpenseName').value='';$('guestNote').value='';
-  $('guestParticipants').innerHTML=active.map(m=>`<label style="display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0"><input type="checkbox" class="guest-participant" value="${m.id}" checked>${m.name}</label>`).join('');
-  $('projectShareDialog').close();$('guestDialog').showModal();
+async function updateProjectShareFile(remove=false){
+  const project=projectById(),file=$('projectShareFile').files[0];
+  if(!project||project.owner!==activeUser)return;
+  if(!remove&&(!file||!/\.html?$/i.test(file.name)||file.size>500000))return alert('เลือกไฟล์ HTML ขนาดไม่เกิน 500 KB');
+  if(cloudSaving||cloudVersion===null)return alert('กรุณารอให้ Cloud พร้อม');
+  const attachment=remove?null:{name:file.name.slice(0,120),html:await file.text()};
+  if(projectById()!==project)return;
+  project.sharedItinerary=attachment;
+  $('projectShareFileName').textContent=project.sharedItinerary?.name||'ยังไม่มีไฟล์กำหนดการ';
+  queueCloudSave();
 }
-function submitGuestExpense(){
-  const p=projectById(),amount=Number($('guestAmount').value),name=$('guestExpenseName').value.trim();
-  const participantIds=[...document.querySelectorAll('.guest-participant:checked')].map(x=>x.value);
-  if(!amount||!name||!participantIds.length)return alert('กรอกข้อมูลให้ครบ');
-  p.pending.unshift({id:newId(),submitterId:$('guestMember').value,payerId:$('guestPayer').value,date:$('guestDate').value,amount,name,participantIds,note:$('guestNote').value.trim(),createdAt:new Date().toISOString()});
-  saveProjects();$('guestDialog').close();renderProjectDetail();alert('ส่งรายการรอตรวจสอบแล้ว');
+function revokeProjectShare(){
+  const project=projectById();
+  if(!project||project.owner!==activeUser||!confirm('ปิดลิงก์ที่แชร์ไว้ทั้งหมดของโปรเจกต์นี้หรือไม่?'))return;
+  project.shareVersion=newId();
+  $('projectShareLink').value='';
+  queueCloudSave();
 }
 function renderProjectPending(){
-  const p=projectById();
-  $('projectPending').innerHTML=p.pending?.length?p.pending.map(x=>{
-    const submitter=p.members.find(m=>m.id===x.submitterId)?.name||'-';
-    const payer=p.members.find(m=>m.id===x.payerId)?.name||'-';
-    return `<div class="list-row"><div><strong>${x.name}</strong><div class="muted">${x.date} · ผู้ส่ง ${submitter} · คนจ่าย ${payer} · ${projectCurrency(p,x.amount)}</div></div><div class="actions"><button class="btn btn-primary" onclick="approvePending('${x.id}')">อนุมัติ</button><button class="btn btn-danger" onclick="rejectPending('${x.id}')">ปฏิเสธ</button></div></div>`;
-  }).join(''):'<div class="empty">ไม่มีรายการรอตรวจสอบ</div>';
+  const project=projectById();
+  const owner=project.owner===activeUser;
+  $('projectPending').innerHTML=(project.pending||[]).map(item=>{
+    const member=id=>escapeHtml(project.members.find(m=>m.id===id)?.name||'-');
+    const title=item.kind==='payment'?'แจ้งโอนเงินให้ '+member(item.toId):escapeHtml(item.name);
+    const buttons=owner?`<div class="actions"><button class="btn btn-primary" data-approve>อนุมัติ</button><button class="btn btn-danger" data-reject>ปฏิเสธ</button></div>`:'';
+    return `<div class="list-row" data-request-id="${escapeHtml(item.id)}"><div><strong>${title}</strong><div>${escapeHtml(item.date)} · ผู้ส่ง ${member(item.submitterId)} · ${escapeHtml(projectCurrency(project,item.amount))}</div><div>${escapeHtml(item.note||'')}</div>${(item.images||[]).filter(isSafeTripImage).map(src=>`<img src="${escapeHtml(src)}" alt="หลักฐาน" style="max-width:180px">`).join('')}</div>${buttons}</div>`;
+  }).join('')||'<div class="empty">ไม่มีรายการรอตรวจสอบ</div>';
+  $('projectPending').querySelectorAll('[data-request-id]').forEach(row=>{
+    row.querySelector('[data-approve]')?.addEventListener('click',()=>reviewProjectRequest(row.dataset.requestId,true));
+    row.querySelector('[data-reject]')?.addEventListener('click',()=>reviewProjectRequest(row.dataset.requestId,false));
+  });
 }
-function approvePending(id){
-  const p=projectById(),x=p.pending.find(e=>e.id===id);if(!x)return;
-  const each=x.amount/x.participantIds.length;
-  const shares=x.participantIds.map((mid,i)=>({memberId:mid,amount:i===x.participantIds.length-1?x.amount-each*(x.participantIds.length-1):each}));
-  p.expenses.unshift({id:newId(),date:x.date,amount:x.amount,currency:p.currency,exchangeRate:1,baseAmount:x.amount,name:x.name,payerId:x.payerId,shares,note:x.note,images:[],createdBy:x.submitterId,createdAt:x.createdAt,source:'guest'});
-  p.pending=p.pending.filter(e=>e.id!==id);saveProjects();renderProjectDetail();
-}
-function rejectPending(id){
-  const p=projectById();p.pending=p.pending.filter(e=>e.id!==id);saveProjects();renderProjectDetail();
+async function reviewProjectRequest(id,approve){
+  const p=projectById(),item=p?.pending?.find(x=>x.id===id);
+  if(!item||p.owner!==activeUser||p.status==='cancelled'||cloudSaving||cloudVersion===null)return;
+  if(cloudDirty)return alert('กรุณารอให้ Cloud บันทึกรายการก่อนหน้าเสร็จ');
+  if(!approve&&!confirm('ปฏิเสธรายการนี้หรือไม่?'))return;
+  const before=structuredClone(p);
+  if(approve&&item.kind==='payment'){
+    if(!recordProjectSettlementPayment({fromId:item.submitterId,toId:item.toId,amount:item.amount,date:item.date,method:item.method,note:item.note}))return;
+    p.settlements.at(-1).guestRequestId=id;
+  }else if(approve){
+    if(p.status!=='active')return alert('กรุณาเปิดโปรเจกต์ก่อนอนุมัติค่าใช้จ่าย');
+    const ids=item.participantIds;
+    if(!ids?.length||![...ids,item.payerId].every(mid=>p.members.some(m=>m.id===mid)))return alert('รายชื่อผู้ร่วมหารเปลี่ยนไป');
+    const each=item.amount/ids.length;
+    const shares=ids.map((memberId,i)=>({memberId,amount:i===ids.length-1?item.amount-each*(ids.length-1):each}));
+    p.expenses.unshift({id:newId(),guestRequestId:id,date:item.date,amount:item.amount,currency:p.currency,
+      exchangeRate:1,baseAmount:item.amount,name:item.name,payerId:item.payerId,shares,
+      note:item.note,images:item.images||[],createdBy:item.submitterId,createdAt:item.createdAt,source:'guest'});
+  }
+  p.pending=p.pending.filter(x=>x.id!==id);
+  const edits=cloudEditCount;
+  clearTimeout(cloudSaveTimer);
+  if(!(await saveCloudState())){
+    if(edits===cloudEditCount){
+      projects=projects.map(project=>project===p?before:project);
+      cloudDirty=false;
+    }
+    alert('ยังไม่ได้บันทึกผลตรวจสอบ กรุณากดโหลดรายการใหม่ก่อนลองอีกครั้ง');
+  }
+  if(projectById()?.id===p.id)renderProjectDetail();
 }
 
 function saveFeatureData(){ queueCloudSave(); }
@@ -2332,7 +2402,7 @@ function deleteCalendarItem(){
 function createNotification(users,title,date,itemId){if(!(users||[]).includes(activeUser))return;const n={id:newId(),title,date,itemId,read:false,createdAt:new Date().toISOString()};appNotifications.unshift(n);showToast(title);sendBrowserNotification(title,date);queueCloudSave();updateNotificationBadge()}
 function showToast(text){const el=document.createElement('div');el.className='toast';el.textContent=text;$('toastStack').appendChild(el);setTimeout(()=>el.remove(),4500)}
 async function sendBrowserNotification(title,body=''){if(!('Notification'in window))return;if(Notification.permission==='default')await Notification.requestPermission();if(Notification.permission==='granted'){try{const reg=await navigator.serviceWorker?.ready;if(reg)reg.showNotification(title,{body,icon:'/icon-192.png',badge:'/icon-192.png',data:{url:'/app.html?page=calendar'}});else new Notification(title,{body})}catch{new Notification(title,{body})}}}
-function checkDueCalendarReminders(){const now=new Date();calendarItems.forEach(i=>{if(!(i.assignees||[]).includes(activeUser)||i.status==='done')return;const horizon=new Date(now);horizon.setDate(horizon.getDate()+Number(i.remindDays||0));const occ=calendarOccurrences(i,new Date(now.getFullYear(),now.getMonth(),now.getDate()),horizon);occ.forEach(o=>{const key=`${i.id}:${o.occurrenceDate}:${activeUser}`;if(appNotifications.some(n=>n.reminderKey===key))return;const n={id:newId(),title:`ใกล้ถึงกำหนด: ${i.name}`,date:o.occurrenceDate,itemId:i.id,read:false,reminderKey:key,createdAt:new Date().toISOString()};appNotifications.unshift(n);showToast(n.title);sendBrowserNotification(n.title,`กำหนด ${new Date(o.occurrenceDate+'T12:00:00').toLocaleDateString('th-TH')}`)})});queueCloudSave();updateNotificationBadge()}
+function checkDueCalendarReminders(){const count=appNotifications.length;const now=new Date();calendarItems.forEach(i=>{if(!(i.assignees||[]).includes(activeUser)||i.status==='done')return;const horizon=new Date(now);horizon.setDate(horizon.getDate()+Number(i.remindDays||0));const occ=calendarOccurrences(i,new Date(now.getFullYear(),now.getMonth(),now.getDate()),horizon);occ.forEach(o=>{const key=`${i.id}:${o.occurrenceDate}:${activeUser}`;if(appNotifications.some(n=>n.reminderKey===key))return;const n={id:newId(),title:`ใกล้ถึงกำหนด: ${i.name}`,date:o.occurrenceDate,itemId:i.id,read:false,reminderKey:key,createdAt:new Date().toISOString()};appNotifications.unshift(n);showToast(n.title);sendBrowserNotification(n.title,`กำหนด ${new Date(o.occurrenceDate+'T12:00:00').toLocaleDateString('th-TH')}`)})});if(appNotifications.length!==count)queueCloudSave();updateNotificationBadge()}
 function updateNotificationBadge(){const count=appNotifications.filter(n=>!n.read).length;$('notificationBadge')?.classList.toggle('hidden',!count);if($('notificationBadge'))$('notificationBadge').textContent=count;$('calendarNavBadge')?.classList.toggle('hidden',!count);if($('calendarNavBadge'))$('calendarNavBadge').textContent=count}
 function openNotificationCenter(){renderNotificationCenter();openDialogById('notificationCenterDialog')}
 function renderNotificationCenter(){$('notificationCenterList').innerHTML=appNotifications.length?appNotifications.map(n=>`<div class="list-row"><div><strong>${escapeHtml(n.title)}</strong><div class="muted">${n.date||''} · ${new Date(n.createdAt).toLocaleString('th-TH')}</div></div>${n.read?'<span class="badge">อ่านแล้ว</span>':`<button class="btn btn-light" onclick="markNotificationRead('${n.id}')">อ่านแล้ว</button>`}</div>`).join(''):'<div class="empty">ไม่มีการแจ้งเตือน</div>'}

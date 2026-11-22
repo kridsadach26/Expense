@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="th">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>โปรเจกต์ที่แชร์ | Harmony Haven</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f1f5f4;color:#15352b;font:16px system-ui,sans-serif}
+main{max-width:740px;margin:auto;padding:22px 16px 60px}h1{margin:.25em 0}
+section,form{background:white;border:1px solid #d7e3dd;border-radius:16px;padding:16px;margin:14px 0}
+label{display:block;margin:12px 0}input,select,textarea,button{font:inherit}
+label>input:not([type=checkbox]),label>select,label>textarea{display:block;width:100%;padding:8px;margin-top:4px;border:1px solid #abc3b9;border-radius:8px}
+button{background:#18624b;color:white;border:0;border-radius:8px;padding:9px 14px;cursor:pointer}
+button:disabled{opacity:.5}iframe{display:block;width:100%;height:70vh;border:1px solid #d7e3dd;margin-top:12px}
+[hidden]{display:none!important}
+</style>
+<main>
+  <div>Harmony Haven</div>
+  <h1 id="title">โปรเจกต์ที่แชร์</h1>
+  <p id="status" role="status">กำลังโหลดข้อมูลโปรเจกต์…</p>
+  <section id="itinerary" hidden>
+    <h2>กำหนดการทริป</h2>
+    <p id="filename"></p>
+    <button id="showItinerary">เปิดกำหนดการ</button>
+    <iframe id="itineraryFrame" title="กำหนดการทริป" sandbox referrerpolicy="no-referrer" hidden></iframe>
+  </section>
+  <form id="submitRequest" hidden>
+    <h2>ส่งรายการให้เจ้าของตรวจสอบ</h2>
+    <label>ชื่อผู้ส่ง<select name="memberId" required></select></label>
+    <label>ประเภทรายการ<select name="action"><option value="expense">ค่าใช้จ่ายที่ออกเอง</option><option value="payment">แจ้งโอนเงินให้สมาชิก</option></select></label>
+    <label>วันที่<input name="date" type="date" required></label>
+    <label>ยอดเงิน <span id="currency"></span><input name="amount" type="number" min="0.01" max="100000000" step="0.01" required></label>
+    <fieldset id="expenseFields">
+      <legend>ค่าใช้จ่าย</legend>
+      <label>รายการ<input name="name" maxlength="120" required></label>
+      <fieldset><legend>ผู้ร่วมหาร</legend><div id="participants"></div></fieldset>
+      <label>รูปหลักฐาน<input name="image" type="file" accept="image/*" required></label>
+    </fieldset>
+    <fieldset id="paymentFields" hidden disabled>
+      <legend>การชำระเงิน</legend>
+      <label>ผู้รับเงิน<select name="toId" required></select></label>
+      <label>ช่องทาง<select name="method"><option value="transfer">โอนเงิน</option><option value="cash">เงินสด</option><option value="wallet">Wallet / QR</option><option value="other">อื่น ๆ</option></select></label>
+    </fieldset>
+    <label>หมายเหตุ<textarea name="note" maxlength="500"></textarea></label>
+    <button type="submit">ส่งให้เจ้าของตรวจสอบ</button>
+    <p id="result" role="status"></p>
+  </form>
+</main>
+<script src="/assets/project-guest.js" defer></script>
+</html>
