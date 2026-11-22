@@ -1,3 +1,4 @@
+import { projectShareOverview } from '@/lib/project-share-overview.mjs';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/server-admin';
@@ -69,6 +70,7 @@ export async function POST(request) {
           currency: project.currency || 'THB',
           open: project.status === 'active',
           members: members.map(({ id, name }) => ({ id, name })),
+          overview: projectShareOverview(project),
           itinerary: project.sharedItinerary || null
         });
       }

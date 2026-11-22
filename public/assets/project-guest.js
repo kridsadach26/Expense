@@ -48,11 +48,92 @@ function updateForm() {
   if (fields.toId.selectedOptions[0]?.disabled) fields.toId.value = '';
 }
 
+function renderOverview(project) {
+  const view = project.overview;
+  if (!view) return;
+  const element = id => document.getElementById(id);
+  const money = value => new Intl.NumberFormat('th-TH', {
+    style: 'currency', currency: project.currency || 'THB', maximumFractionDigits: 2
+  }).format(value);
+  const metric = (id, label, value) => {
+    const tile = document.createElement('div');
+    tile.className = 'metric';
+    const strong = document.createElement('strong');
+    strong.textContent = value;
+    tile.append(label, strong);
+    element(id).append(tile);
+  };
+  const rows = (id, items, toText, empty) => {
+    const target = element(id);
+    if (!items.length) target.textContent = empty;
+    for (const item of items) {
+      const [title, detail, value] = toText(item);
+      const row = document.createElement('div');
+      row.className = 'summaryRow';
+      const label = document.createElement('div');
+      const subtitle = document.createElement('small');
+      subtitle.textContent = detail;
+      const amount = document.createElement('strong');
+      amount.textContent = value;
+      label.append(title, subtitle);
+      row.append(label, amount);
+      target.append(row);
+    }
+  };
+  element('projectMeta').textContent = [
+    [view.start, view.end].filter(Boolean).join(' ถึง '),
+    view.destination,
+    project.open ? 'กำลังดำเนินการ' : 'ปิดโปรเจกต์แล้ว'
+  ].filter(Boolean).join(' · ');
+  metric('metrics', 'ค่าใช้จ่ายรวม', money(view.total));
+  metric('metrics', 'สมาชิก', view.memberCount + ' คน');
+  metric('metrics', 'รายการค่าใช้จ่าย', view.expenseCount + ' รายการ');
+  metric('metrics', 'รอตรวจสอบ', view.pendingCount + ' รายการ');
+  if (view.fund) {
+    element('fundSection').hidden = false;
+    metric('fundMetrics', 'รับเข้ากองกลาง', money(view.fund.received));
+    metric('fundMetrics', 'ใช้จากกองกลาง', money(view.fund.spent));
+    metric('fundMetrics', 'กองกลางคงเหลือ', money(view.fund.balance));
+    element('fundHolder').textContent = 'ผู้ถือเงินกองกลาง ' + view.fund.holder;
+  }
+  rows('balances', view.balances, item => [
+    item.name, Math.abs(item.net) <= 0.005 ? 'เคลียร์แล้ว' : item.net < 0 ? 'ต้องจ่าย' : 'ต้องรับคืน',
+    money(Math.abs(item.net) <= 0.005 ? 0 : Math.abs(item.net))
+  ], 'ยังไม่มีสมาชิก');
+  rows('expenses', view.expenses, item => [
+    item.name || 'ค่าใช้จ่าย', [item.date, item.central ? 'จ่ายจากกองกลาง' : 'จ่ายโดย ' + item.payer].filter(Boolean).join(' · '),
+    money(item.value)
+  ], 'ยังไม่มีค่าใช้จ่าย');
+  rows('payments', view.payments, item => [
+    item.from + ' → ' + item.to, item.date || '', money(item.value)
+  ], 'ยังไม่มีรายการชำระที่บันทึกแล้ว');
+  if (view.schedule.length) {
+    element('projectSchedule').hidden = false;
+    rows('schedule', view.schedule, item => [
+      item.title || 'กำหนดการ', [item.date, item.place].filter(Boolean).join(' · '), item.time || ''
+    ], '');
+  }
+  const scheduleLink = element('scheduleLink');
+  if (view.schedule.length || project.itinerary?.html) {
+    scheduleLink.hidden = false;
+    scheduleLink.href = view.schedule.length ? '#projectSchedule' : '#itinerary';
+  }
+  element('projectNav').hidden = false;
+  element('projectNav').addEventListener('click', event => {
+    const href = event.target.closest('a')?.getAttribute('href');
+    if (!href) return;
+    event.preventDefault();
+    element(href.slice(1))?.scrollIntoView();
+  });
+  element('overview').hidden = false;
+}
+
 async function initialize() {
   try {
     if (!token) throw new Error('กรุณาเปิดจากลิงก์ที่ได้รับจากเจ้าของโปรเจกต์');
     const project = await send({ action: 'view' });
     document.getElementById('title').textContent = project.name;
+    renderOverview(project);
     status.textContent = 'รายการที่ส่งจะรอเจ้าของโปรเจกต์อนุมัติ';
     document.getElementById('currency').textContent = '(' + project.currency + ')';
     if (project.itinerary?.html) {
@@ -86,6 +167,7 @@ async function initialize() {
       fields.action.querySelector('[value="payment"]').defaultSelected = true;
     }
     form.hidden = !project.members.length;
+    document.querySelector('#projectNav a').hidden = form.hidden;
     updateForm();
   } catch (error) {
     status.textContent = error.message;
