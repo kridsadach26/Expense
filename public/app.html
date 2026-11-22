@@ -769,7 +769,8 @@
             <button class="btn btn-primary" type="button" onclick="openTripProposal()">+ เสนอรายการ</button>
             <button class="btn btn-light" type="button" onclick="openTripItinerary()">+ เพิ่มแผนรายวัน</button>
             <button class="btn btn-light" type="button" onclick="openTripFundContribution()">💰 รับเงินกองกลาง</button>
-            <button class="btn btn-light" type="button" onclick="shareTripPlan()">แชร์แผน</button>
+            <button id="tripAttachItinerary" class="btn btn-light" type="button" onclick="openProjectItineraryAttachment()">แนบกำหนดการ</button>
+            <button class="btn btn-light" type="button" onclick="shareTripPlan(this)">แชร์แผน</button>
           </div>
         </div>
         <div class="travel-summary-grid">
@@ -1208,19 +1209,27 @@
       <button class="btn btn-primary" onclick="createProjectShareLink()">สร้างลิงก์</button>
       <button class="btn btn-light" onclick="copyProjectLink()">คัดลอกลิงก์</button>
       <button class="btn btn-light" onclick="revokeProjectShare()">ปิดลิงก์เดิมทั้งหมด</button>
+      <button class="btn btn-light" type="button" onclick="openProjectItineraryAttachment()">จัดการไฟล์กำหนดการ</button>
     </div>
-    <hr>
-    <label for="projectShareFile">กำหนดการ HTML · ไม่เกิน 500 KB</label>
-    <input id="projectShareFile" type="file" accept=".html,.htm,text/html">
+  </div>
+</dialog>
+
+<dialog id="projectItineraryAttachmentDialog">
+  <div class="dialog-head"><strong>ไฟล์กำหนดการ</strong><button id="projectItineraryClose" class="btn btn-light" type="button" onclick="closeDialogById('projectItineraryAttachmentDialog')">ปิด</button></div>
+  <div class="dialog-body">
     <p id="projectShareFileName"></p>
+    <label for="projectShareFile">เลือกไฟล์ HTML · ไม่เกิน 500 KB</label>
+    <input id="projectShareFile" type="file" accept=".html,.htm,text/html">
+    <p id="projectItineraryStatus" role="status"></p>
     <div class="actions">
-      <button class="btn btn-primary" onclick="updateProjectShareFile()">บันทึกไฟล์แนบ</button>
-      <button class="btn btn-light" onclick="updateProjectShareFile(true)">นำไฟล์ออก</button>
+      <button id="projectItinerarySave" class="btn btn-primary" type="button" onclick="updateProjectShareFile()">บันทึกไฟล์แนบ</button>
+      <button id="projectItineraryRemove" class="btn btn-light" type="button" onclick="updateProjectShareFile(true)">นำไฟล์ออก</button>
     </div>
   </div>
 </dialog>
 
 <dialog id="tripSettingsDialog">
+
   <div class="dialog-head"><strong>ตั้งค่าทริปต่างประเทศ</strong><button class="btn btn-light" type="button" onclick="closeDialogById('tripSettingsDialog')">ปิด</button></div>
   <div class="dialog-body"><div class="trip-form-grid">
     <div><label>ประเทศปลายทาง</label><input id="tripDestination" placeholder="เช่น ญี่ปุ่น"></div>
@@ -1319,6 +1328,6 @@
 <dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="closeDialogById('notificationCenterDialog')">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
 <div id="toastStack" class="toast-stack"></div>
 
-<script src="/assets/harmony-app-v2.js?v=2.4.1" defer></script>
+<script src="/assets/harmony-app-v2.js?v=2.4.5" defer></script>
 </body>
 </html>

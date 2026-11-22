@@ -1446,6 +1446,7 @@ function renderTripPlanner(){
   const emergency=estimated*(Math.max(0,t.emergencyPercent||0)/100);$('tripEstimatedTotal').textContent=projectCurrency(p,estimated+emergency);$('tripApprovedTotal').textContent=projectCurrency(p,approved);$('tripActualTotal').textContent=projectCurrency(p,actual);
   $('tripPerPerson').textContent=projectCurrency(p,(estimated+emergency)/Math.max(1,activeMembers.length));
   renderTripFund(p,t);
+  renderProjectItineraryAttachment(p);
   const parts=[t.destination,t.cities,p.start&&p.end?`${p.start} – ${p.end}`:(p.start||p.end),`${activeMembers.length} คน`].filter(Boolean);$('tripOverviewText').textContent=parts.join(' · ')||'เพิ่มประเทศ เมือง และงบประมาณเพื่อเริ่มวางแผนร่วมกัน';
   $('tripProposalCount').textContent=`${t.proposals.length} ข้อเสนอ · ${t.proposals.reduce((s,x)=>s+(x.votes?.length||0),0)} คะแนน`;
   const filters=[['all','ทั้งหมด'],...TRIP_CATEGORIES];$('tripProposalFilters').innerHTML=filters.map(([key,label])=>`<button type="button" class="${tripProposalFilter===key?'active':''}" onclick="setTripProposalFilter('${key}')">${label}</button>`).join('');
@@ -1465,12 +1466,30 @@ function renderTripPlanner(){
   $('tripBudgetByCategory').innerHTML=categoryTotals.length?categoryTotals.map(x=>`<div class="travel-budget-row"><div class="travel-budget-head"><span>${x.label}</span><strong>${projectCurrency(p,x.total)}</strong></div><div class="travel-budget-bar"><div style="width:${Math.min(100,x.total/max*100)}%"></div></div></div>`).join(''):'<div class="travel-empty">ยังไม่มีประมาณการ</div>';
   const budget=t.targetBudget||0;const remaining=budget-(estimated+emergency);$('tripImportantInfo').innerHTML=`<div class="travel-overview">${t.transportRef?`<span>✈️ ${escapeHtml(t.transportRef)}</span>`:''}${t.accommodation?`<span>🏨 ${escapeHtml(t.accommodation)}</span>`:''}${budget?`<span>🎯 งบ ${projectCurrency(p,budget)}</span><span class="${remaining>=0?'income':'expense'}">${remaining>=0?'เหลือ':'เกิน'} ${projectCurrency(p,Math.abs(remaining))}</span>`:''}<span>🧰 สำรอง ${Number(t.emergencyPercent||0)}%</span></div>${t.importantNote?`<div class="muted" style="white-space:pre-wrap">${escapeHtml(t.importantNote)}</div>`:'<div class="muted">ยังไม่มีข้อมูลสำคัญ</div>'}`;
 }
-async function shareTripPlan(){
-  const p=projectById();if(!p)return;const t=ensureTravelPlan(p);const relevant=t.proposals.filter(x=>['shortlisted','approved','booked'].includes(x.status));const estimated=t.proposals.filter(x=>x.status!=='rejected').reduce((s,x)=>s+tripProposalBaseAmount(p,x),0);
-  const fund=tripFundSummary(p,t);const holderId=defaultTripFundHolderId(p,t);const holder=holderId?tripMemberName(p,holderId):'';
-  const text=[`✈️ ${p.name}`,t.destination||'',t.cities||'',p.start||p.end?`วันที่ ${p.start||'-'} ถึง ${p.end||'-'}`:'',`ประมาณการ ${projectCurrency(p,estimated)}`,`สมาชิก ${(p.members||[]).filter(m=>m.active!==false).map(m=>m.name).join(', ')}`,fund.total?`เงินกองกลาง ${projectCurrency(p,fund.total)} · ใช้แล้ว ${projectCurrency(p,fund.spent)} · คงเหลือ ${projectCurrency(p,fund.balance)}${holder?` · อยู่กับ ${holder}`:''}`:'','',...relevant.slice(0,20).map(x=>`• ${TRIP_STATUS_LABELS[x.status]}: ${x.title} ${projectCurrency(p,tripProposalBaseAmount(p,x))}`)].filter(Boolean).join('\n');
-  const shareUrl=new URL(location.href);shareUrl.searchParams.set('page','projectDetail');shareUrl.searchParams.set('project',p.id);shareUrl.searchParams.set('tab','travel');
-  try{if(navigator.share)await navigator.share({title:p.name,text,url:shareUrl.href});else{await navigator.clipboard.writeText(`${text}\n\n${shareUrl.href}`);showToast('คัดลอกสรุปและลิงก์ทริปแล้ว')}}catch(err){if(err?.name!=='AbortError'){console.warn(err);alert(`${text}\n\n${shareUrl.href}`)}}
+async function shareTripPlan(button){
+  const project=projectById();
+  if(!project||button.disabled)return;
+  button.disabled=true;
+  const linkPromise=requestProjectShareLink(project);
+  try{
+    if(window.ClipboardItem&&navigator.clipboard?.write){
+      const item=new ClipboardItem({'text/plain':linkPromise.then(link=>new Blob([link],{type:'text/plain'}))});
+      await navigator.clipboard.write([item]);
+    }else{
+      await navigator.clipboard.writeText(await linkPromise);
+    }
+    showToast('คัดลอกลิงก์แผนทริปแล้ว');
+  }catch{
+    try{
+      const link=await linkPromise;
+      if(projectById()?.id!==project.id)return;
+      openProjectShare();
+      $('projectShareLink').value=link;
+      await copyProjectLink();
+    }catch(error){alert(error.message)}
+  }finally{
+    button.disabled=false;
+  }
 }
 
 function openMemberManager(){
@@ -1986,23 +2005,25 @@ function openProjectShare(){
   const project=projectById();
   if(!project||project.owner!==activeUser)return alert('เฉพาะเจ้าของโปรเจกต์เท่านั้นที่แชร์ได้');
   $('projectShareLink').value='';
-  $('projectShareFile').value='';
-  $('projectShareFileName').textContent=project.sharedItinerary?.name||'ยังไม่มีไฟล์กำหนดการ';
   openDialogById('projectShareDialog');
+}
+async function requestProjectShareLink(project){
+  if(!project||project.owner!==activeUser)throw new Error('เฉพาะเจ้าของโปรเจกต์เท่านั้นที่แชร์ได้');
+  if(cloudSaving||cloudVersion===null)throw new Error('กรุณารอให้ Cloud พร้อม');
+  if(cloudDirty&&!(await saveCloudState()))throw new Error('กรุณาบันทึกโปรเจกต์ขึ้น Cloud ก่อน');
+  const {res,data}=await fetchJsonWithTimeout('/api/project-share',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId:project.id})
+  });
+  if(!res.ok||!data.token)throw new Error(data.error||'สร้างลิงก์ไม่ได้');
+  const link=new URL('/project-guest.html','https://expense-six-tau.vercel.app');
+  link.hash=data.token;
+  return link.href;
 }
 async function createProjectShareLink(){
   const project=projectById();
   try{
-    if(cloudSaving||cloudVersion===null)throw new Error('กรุณารอให้ Cloud พร้อม');
-    if(cloudDirty&&!(await saveCloudState()))throw new Error('กรุณาบันทึกโปรเจกต์ขึ้น Cloud ก่อน');
-    const {res,data}=await fetchJsonWithTimeout('/api/project-share',{
-      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId:project.id})
-    });
-    if(!res.ok)throw new Error(data.error||'สร้างลิงก์ไม่ได้');
-    const productionOrigin='https://expense-six-tau.vercel.app';
-    const link=new URL('/project-guest.html',productionOrigin);
-    link.hash=data.token;
-    $('projectShareLink').value=link.href;
+    const link=await requestProjectShareLink(project);
+    if(projectById()?.id===project.id)$('projectShareLink').value=link;
   }catch(err){alert(err.message)}
 }
 async function copyProjectLink(){
@@ -2011,16 +2032,63 @@ async function copyProjectLink(){
   try{await navigator.clipboard.writeText(input.value);showToast('คัดลอกลิงก์แล้ว')}
   catch{input.select();showToast('เลือกลิงก์แล้ว กดคัดลอกได้เลย')}
 }
+function renderProjectItineraryAttachment(project){
+  const name=project.sharedItinerary?.name;
+  const button=$('tripAttachItinerary');
+  button.hidden=project.owner!==activeUser||project.status==='cancelled';
+  button.textContent=name?'อัปเดตกำหนดการ':'แนบกำหนดการ';
+  $('projectShareFileName').textContent=name?'ไฟล์ปัจจุบัน '+name:'ยังไม่มีไฟล์กำหนดการ';
+  $('projectItinerarySave').textContent=name?'อัปเดตไฟล์':'บันทึกไฟล์แนบ';
+  $('projectItineraryRemove').hidden=!name;
+}
+function openProjectItineraryAttachment(){
+  const project=projectById();
+  if(!project||project.owner!==activeUser||project.status==='cancelled')return;
+  closeDialogById('projectShareDialog');
+  $('projectShareFile').value='';
+  $('projectItineraryStatus').textContent='';
+  renderProjectItineraryAttachment(project);
+  openDialogById('projectItineraryAttachmentDialog');
+}
 async function updateProjectShareFile(remove=false){
-  const project=projectById(),file=$('projectShareFile').files[0];
-  if(!project||project.owner!==activeUser)return;
-  if(!remove&&(!file||!/\.html?$/i.test(file.name)||file.size>500000))return alert('เลือกไฟล์ HTML ขนาดไม่เกิน 500 KB');
-  if(cloudSaving||cloudVersion===null)return alert('กรุณารอให้ Cloud พร้อม');
-  const attachment=remove?null:{name:file.name.slice(0,120),html:await file.text()};
-  if(projectById()!==project)return;
-  project.sharedItinerary=attachment;
-  $('projectShareFileName').textContent=project.sharedItinerary?.name||'ยังไม่มีไฟล์กำหนดการ';
-  queueCloudSave();
+  const project=projectById(),input=$('projectShareFile'),file=input.files[0];
+  const status=$('projectItineraryStatus'),save=$('projectItinerarySave');
+  if(!project||project.owner!==activeUser||project.status==='cancelled'||save.disabled)return;
+  if(!remove&&(!file||!/\.html?$/i.test(file.name)||!file.size||file.size>500000)){
+    status.textContent='เลือกไฟล์ HTML ขนาดไม่เกิน 500 KB';
+    return;
+  }
+  if(cloudSaving||cloudVersion===null){
+    status.textContent='กรุณารอให้ Cloud พร้อม แล้วลองอีกครั้ง';
+    return;
+  }
+  const controls=[input,save,$('projectItineraryRemove'),$('projectItineraryClose')];
+  controls.forEach(control=>control.disabled=true);
+  status.textContent='กำลังบันทึก…';
+  try{
+    const attachment=remove?null:{name:file.name.slice(0,120),html:await file.text()};
+    if(projectById()!==project)return;
+    if(cloudSaving)throw new Error('กำลังบันทึก Cloud กรุณาลองอีกครั้ง');
+    const previous=project.sharedItinerary;
+    const wasDirty=cloudDirty;
+    project.sharedItinerary=attachment;
+    queueCloudSave();
+    const edits=cloudEditCount;
+    clearTimeout(cloudSaveTimer);
+    if(!(await saveCloudState())){
+      project.sharedItinerary=previous;
+      if(edits===cloudEditCount)cloudDirty=wasDirty;
+      throw new Error('ยังบันทึกไฟล์ขึ้น Cloud ไม่สำเร็จ กรุณาตรวจสถานะ Cloud แล้วลองอีกครั้ง');
+    }
+    if(projectById()!==project)return;
+    input.value='';
+    renderProjectItineraryAttachment(project);
+    status.textContent=remove?'นำไฟล์ออกแล้ว':'บันทึกแล้ว ผู้ร่วมทริปเปิดดูจากลิงก์เดิมได้';
+  }catch(error){
+    status.textContent=error.message;
+  }finally{
+    controls.forEach(control=>control.disabled=false);
+  }
 }
 function revokeProjectShare(){
   const project=projectById();
