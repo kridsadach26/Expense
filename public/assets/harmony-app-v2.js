@@ -1999,7 +1999,10 @@ async function createProjectShareLink(){
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId:project.id})
     });
     if(!res.ok)throw new Error(data.error||'สร้างลิงก์ไม่ได้');
-    $('projectShareLink').value=new URL('/project-guest.html#'+data.token,location.origin).href;
+    const productionOrigin='https://expense-six-tau.vercel.app';
+    const link=new URL('/project-guest.html',productionOrigin);
+    link.hash=data.token;
+    $('projectShareLink').value=link.href;
   }catch(err){alert(err.message)}
 }
 async function copyProjectLink(){
