@@ -63,7 +63,7 @@ function renderOverview(project) {
     tile.append(label, strong);
     element(id).append(tile);
   };
-  const rows = (id, items, toText, empty) => {
+  const rows = (id, items, toText, empty, addAction) => {
     const target = element(id);
     if (!items.length) target.textContent = empty;
     for (const item of items) {
@@ -77,6 +77,7 @@ function renderOverview(project) {
       amount.textContent = value;
       label.append(title, subtitle);
       row.append(label, amount);
+      addAction?.(row, item);
       target.append(row);
     }
   };
@@ -103,7 +104,15 @@ function renderOverview(project) {
   rows('expenses', view.expenses, item => [
     item.name || 'ค่าใช้จ่าย', [item.date, item.central ? 'จ่ายจากกองกลาง' : 'จ่ายโดย ' + item.payer].filter(Boolean).join(' · '),
     money(item.value)
-  ], 'ยังไม่มีค่าใช้จ่าย');
+  ], 'ยังไม่มีค่าใช้จ่าย', (row, expense) => {
+    if (!expense.id || !expense.proofCount) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'expenseProof';
+    button.textContent = 'ดูหลักฐาน (' + expense.proofCount + ' รูป)';
+    button.onclick = () => openExpenseProof(expense);
+    row.append(button);
+  });
   rows('payments', view.payments, item => [
     item.from + ' → ' + item.to, item.date || '', money(item.value)
   ], 'ยังไม่มีรายการชำระที่บันทึกแล้ว');
@@ -126,6 +135,42 @@ function renderOverview(project) {
     target?.scrollIntoView();
   });
   element('overview').hidden = false;
+}
+
+function openExpenseProof(expense) {
+  const dialog = document.getElementById('expenseProofDialog');
+  const image = document.getElementById('proofImage');
+  const status = document.getElementById('proofStatus');
+  const previous = document.getElementById('previousProof');
+  const next = document.getElementById('nextProof');
+  let index = 0;
+  let request = 0;
+
+  async function load() {
+    const currentRequest = ++request;
+    previous.disabled = index === 0;
+    next.disabled = index + 1 >= expense.proofCount;
+    image.hidden = true;
+    image.removeAttribute('src');
+    status.textContent = 'กำลังโหลดหลักฐาน…';
+    try {
+      const data = await send({ action: 'expense-proof', expenseId: expense.id, index });
+      if (!dialog.open || currentRequest !== request) return;
+      image.src = data.image;
+      image.hidden = false;
+      status.textContent = 'รูป ' + (index + 1) + ' จาก ' + expense.proofCount;
+    } catch (error) {
+      if (dialog.open && currentRequest === request) status.textContent = error.message;
+    }
+  }
+
+  document.getElementById('proofTitle').textContent = expense.name || 'หลักฐานค่าใช้จ่าย';
+  document.getElementById('closeProof').onclick = () => dialog.close();
+  dialog.onclose = () => { request++; image.removeAttribute('src'); };
+  previous.onclick = () => { if (index > 0) { index--; load(); } };
+  next.onclick = () => { if (index + 1 < expense.proofCount) { index++; load(); } };
+  dialog.showModal();
+  load();
 }
 
 function renderItinerary(itinerary) {

@@ -1,5 +1,5 @@
 import { itineraryBucket, itineraryFileType, itineraryObjectIsValid, itineraryPrefix, maxItineraryBytes } from '@/lib/project-itinerary.mjs';
-import { projectShareOverview } from '@/lib/project-share-overview.mjs';
+import { expenseProofImages, projectShareOverview } from '@/lib/project-share-overview.mjs';
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/server-admin';
@@ -92,6 +92,14 @@ export async function POST(request) {
       const members = (project.members || []).filter(m => m.active !== false);
       const attachment = project.sharedItinerary;
       const stored = itineraryObjectIsValid(attachment?.path, claims.householdId, project.id);
+      if (body.action === 'expense-proof') {
+        const expense = (project.expenses || []).find(item => item.id && item.id === body.expenseId);
+        if (!expense) return response({ error: 'ไม่พบรายการค่าใช้จ่าย' }, 404);
+        const index = body.index;
+        const image = Number.isInteger(index) && index >= 0 ? expenseProofImages(expense)[index] : null;
+        if (!image) return response({ error: 'ไม่พบรูปหลักฐาน' }, 404);
+        return response({ image });
+      }
       if (body.action === 'itinerary-file') {
         if (!stored) return response({ error: 'ไม่พบไฟล์กำหนดการ' }, 404);
         const { data: file, error } = await admin.storage.from(itineraryBucket)
