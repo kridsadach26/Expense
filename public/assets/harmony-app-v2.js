@@ -1260,6 +1260,7 @@ function renderProjectDetail(){
   renderProjectSettlementHistory();
   renderProjectSettlementHeadline();
   renderProjectPending();
+  if(!$('projectTabReport').classList.contains('hidden'))renderTripReport();
 }
 function updateTripInboxLabel(project){
   const count=project.pending?.length||0;
@@ -1279,6 +1280,7 @@ function selectProjectTab(name){
   document.querySelectorAll('.project-tab-panel').forEach(item=>item.classList.toggle('hidden',item!==panel));
   if(name==='travel')renderTripPlanner();
   if(name==='pending')refreshProjectInbox();
+  if(name==='report'){renderTripReport();refreshProjectInbox();}
 }
 document.querySelectorAll('[data-project-tab]').forEach(button=>button.addEventListener('click',()=>selectProjectTab(button.dataset.projectTab)));
 
@@ -1987,6 +1989,68 @@ function calculateSettlements(p){
     if(creditors[j].amount<0.005)j++;
   }
   return result;
+}
+function tripReportData(project){
+  const expenses=(project.expenses||[]).slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+  const categories=new Map();
+  let total=0;
+  expenses.forEach(expense=>{
+    const value=expenseBaseAmount(expense);
+    const category=expense.categoryPath?.[0]||expense.category||'ไม่ระบุหมวด';
+    const group=categories.get(category)||{name:category,count:0,value:0};
+    group.count++;
+    group.value+=value;
+    categories.set(category,group);
+    total+=value;
+  });
+  const transfers=calculateSettlements(project);
+  const payments=projectSettlementRecords(project).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const members=Object.values(calculateProjectBalances(project));
+  const grouped=[...calculateProjectSettlementGroups(project).values()];
+  return {
+    expenses,categories:[...categories.values()].sort((a,b)=>b.value-a.value),total,transfers,payments,members,
+    outstanding:transfers.reduce((sum,transfer)=>sum+transfer.amount,0),
+    settled:payments.reduce((sum,payment)=>sum+Number(payment.amount),0),
+    difference:grouped.reduce((sum,item)=>sum+item.net,0),
+    pending:project.pending?.length||0
+  };
+}
+function renderTripReport(){
+  const project=projectById();
+  if(!project)return;
+  const report=tripReportData(project);
+  const money=value=>escapeHtml(projectCurrency(project,value));
+  const text=value=>escapeHtml(String(value??'—'));
+  const table=(title,headers,rows,empty)=>`<section class="trip-report-section"><h3>${title}</h3>${rows.length?
+    `<div class="trip-report-scroll"><table><thead><tr>${headers.map(header=>`<th scope="col">${header}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(row=>`<tr>${row.map(cell=>`<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:
+    `<p class="muted">${empty}</p>`}</section>`;
+  const dates=[project.start,project.end].filter(Boolean).join(' ถึง ');
+  const state=project.status==='closed'?'ปิดทริปแล้ว':project.status==='cancelled'?'ยกเลิกทริป':'ทริปยังเปิดอยู่';
+  const plan=project.travelPlan;
+  const fund=plan?tripFundSummary(project,plan):null;
+  $('tripReport').innerHTML=`
+    <header class="trip-report-header"><h2>${text(project.name)}</h2><p>${text([dates,state].filter(Boolean).join(' · '))}</p></header>
+    <div class="trip-report-metrics">
+      <div><span>ใช้จ่ายจริง · ${report.expenses.length} รายการ</span><strong>${money(report.total)}</strong></div>
+      <div><span>โอนเคลียร์แล้ว</span><strong>${money(report.settled)}</strong></div>
+      <div><span>ยังต้องโอนคืน</span><strong>${money(report.outstanding)}</strong></div>
+    </div>
+    ${report.pending?`<p class="notice">มี ${report.pending} รายการรอตรวจสอบ ยอดด้านล่างยังไม่รวมรายการเหล่านี้</p>`:''}
+    ${Math.abs(report.difference)>0.01?`<p class="notice">ยอดรวมของสมาชิกต่างกัน ${money(Math.abs(report.difference))} กรุณาตรวจรายการแบ่งยอดก่อนใช้รายงานเคลียร์ทริป</p>`:''}
+    ${table('ใครต้องโอนคืนใคร',['ผู้จ่าย','ผู้รับ','ยอดคงค้าง'],report.transfers.map(item=>[text(item.from),text(item.to),money(item.amount)]),'ไม่มีรายการที่ต้องโอนคืน')}
+    ${table('ค่าใช้จ่ายแยกตามหมวด',['หมวด','จำนวนรายการ','ยอดรวม'],report.categories.map(item=>[text(item.name),item.count,money(item.value)]),'ยังไม่มีค่าใช้จ่าย')}
+    ${fund?table('เงินกองกลาง',['รับเข้า','ใช้จากกองกลาง','คงเหลือ'],[[money(fund.total),money(fund.spent),money(fund.balance)]],''):''}
+    ${table('ยอดที่สมาชิกสำรองจ่าย',['สมาชิก','สำรองจ่ายส่วนตัว','ส่งเข้ากองกลาง','ส่วนที่รับผิดชอบ'],report.members.map(item=>[text(item.member.name),money(item.personalPaid),money(item.centralContributed),money(item.owed)]),'ยังไม่มีสมาชิก')}
+    ${table('รายการค่าใช้จ่ายทั้งหมด',['วันที่','รายการ','ผู้จ่าย / แหล่งเงิน','ยอดในสกุลหลัก'],report.expenses.map(item=>[text(item.date),text(item.name),text(item.fundSource==='central'?'เงินกองกลาง':projectSettlementMemberName(project,item.payerId)),money(expenseBaseAmount(item))]),'ยังไม่มีค่าใช้จ่าย')}
+    ${table('รายการที่โอนแล้ว',['วันที่','ผู้จ่าย','ผู้รับ','ยอดชำระ'],report.payments.map(item=>[text(item.date),text(projectSettlementGroupName(project,item.fromId,item.fromName)),text(projectSettlementGroupName(project,item.toId,item.toName)),money(Number(item.amount))]),'ยังไม่มีประวัติการชำระ')}
+  `;
+}
+function printTripReport(){
+  renderTripReport();
+  document.body.classList.add('printing-trip-report');
+  window.addEventListener('afterprint',()=>document.body.classList.remove('printing-trip-report'),{once:true});
+  window.print();
 }
 function projectSettlementTransferTotal(p){return calculateSettlements(p).reduce((sum,row)=>sum+Number(row.amount||0),0)}
 function projectSettlementStats(p){

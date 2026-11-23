@@ -454,7 +454,7 @@
 
 .project-expense-row{cursor:pointer}.project-expense-row:hover{background:#fff8ef}.project-expense-link{color:inherit;background:none;border:0;text-align:left;text-decoration:underline;font-weight:700;padding:0;margin-right:8px;cursor:pointer}.project-proof-image{align-self:start;padding:4px}.project-proof-image img{display:block}
 </style>
-<link rel="stylesheet" href="/assets/trips.css?v=2.6.1">
+<link rel="stylesheet" href="/assets/trips.css?v=2.6.2">
 </head>
 <body class="app-loading">
 
@@ -731,6 +731,7 @@
         <button id="projectTravelTabBtn" class="hidden" data-project-tab="travel">กำหนดการ</button>
         <button data-project-tab="expenses">ค่าใช้จ่าย</button>
         <button data-project-tab="settlements">เคลียร์ยอด</button>
+        <button data-project-tab="report">สรุปทริป</button>
         <button id="tripInboxTab" data-project-tab="pending">รอตรวจสอบ</button>
       </nav>
       <div id="projectTabOverview" class="project-tab-panel">
@@ -765,6 +766,14 @@
         <details class="trip-fold"><summary>ยอดสุทธิรายคน</summary><div class="card" id="projectBalances"></div></details>
         <div class="section-title"><div><h2>ประวัติการชำระ</h2><div class="muted">เป็นการเคลียร์เงินระหว่างสมาชิก ไม่ถูกนับเป็นรายรับหรือค่าใช้จ่ายซ้ำ</div></div></div>
         <div class="card"><div id="projectSettlementHistory" class="settlement-history"></div></div>
+      </div>
+
+      <div id="projectTabReport" class="project-tab-panel hidden">
+        <div class="section-title trip-report-toolbar">
+          <h2>รายงานสรุปทริป</h2>
+          <button type="button" class="btn btn-light" onclick="printTripReport()">พิมพ์ / บันทึก PDF</button>
+        </div>
+        <article id="tripReport" class="trip-report"></article>
       </div>
 
       <div id="projectTabPending" class="project-tab-panel hidden">
@@ -1350,6 +1359,6 @@
 <dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="closeDialogById('notificationCenterDialog')">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
 <div id="toastStack" class="toast-stack"></div>
 
-<script src="/assets/harmony-app-v2.js?v=2.6.1" defer></script>
+<script src="/assets/harmony-app-v2.js?v=2.6.2" defer></script>
 </body>
 </html>
