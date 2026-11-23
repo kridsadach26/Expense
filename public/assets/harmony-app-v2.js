@@ -1747,10 +1747,37 @@ function renderProjectExpenses(){
   $('projectExpenseList').innerHTML=p.expenses?.length?`<table><thead><tr><th>วันที่</th><th>รายการ</th><th>ผู้จ่าย</th><th>ยอด</th><th>หาร</th><th></th></tr></thead><tbody>${
     p.expenses.map(e=>{
       const payer=p.members.find(m=>m.id===e.payerId)?.name||'-';
-      const names=e.shares.map(s=>p.members.find(m=>m.id===s.memberId)?.name).filter(Boolean).join(', ');
-      return `<tr><td>${e.date}</td><td><strong>${escapeHtml(e.name)}</strong>${e.fundSource==='central'?` <span class="trip-fund-badge">💰 กองกลาง</span>`:''}<div class="muted">${escapeHtml(entryCategoryLabel(e))}</div>${(e.tags||[]).length?`<div class="history-tags">${e.tags.map(tag=>`<span>#${escapeHtml(tag)}</span>`).join('')}</div>`:''}${e.note?`<div class="muted">${escapeHtml(e.note)}</div>`:''}</td><td>${escapeHtml(payer)}</td><td>${projectCurrency({currency:e.currency||p.currency},e.amount)}${(e.currency&&e.currency!==p.currency)?`<div class="muted">≈ ${projectCurrency(p,expenseBaseAmount(e))} · เรท ${Number(e.exchangeRate||1).toLocaleString()}</div>`:''}</td><td>${escapeHtml(names)}</td><td><button class="btn btn-danger" onclick="deleteProjectExpense('${e.id}')">ลบ</button></td></tr>`;
+      const names=(e.shares||[]).map(s=>p.members.find(m=>m.id===s.memberId)?.name).filter(Boolean).join(', ');
+      const proofCount=(Array.isArray(e.images)?e.images:[]).filter(isSafeTripImage).length;
+      return `<tr class="project-expense-row"><td>${escapeHtml(e.date||'')}</td><td><button type="button" class="project-expense-link" data-expense-id="${escapeHtml(e.id)}">${escapeHtml(e.name||'ค่าใช้จ่าย')}</button>${proofCount?`<span class="badge">หลักฐาน ${proofCount} รูป</span>`:''}${e.fundSource==='central'?` <span class="trip-fund-badge">💰 กองกลาง</span>`:''}<div class="muted">${escapeHtml(entryCategoryLabel(e))}</div>${(e.tags||[]).length?`<div class="history-tags">${e.tags.map(tag=>`<span>#${escapeHtml(tag)}</span>`).join('')}</div>`:''}${e.note?`<div class="muted">${escapeHtml(e.note)}</div>`:''}</td><td>${escapeHtml(payer)}</td><td>${projectCurrency({currency:e.currency||p.currency},e.amount)}${(e.currency&&e.currency!==p.currency)?`<div class="muted">≈ ${projectCurrency(p,expenseBaseAmount(e))} · เรท ${Number(e.exchangeRate||1).toLocaleString()}</div>`:''}</td><td>${escapeHtml(names)}</td><td><button class="btn btn-danger" onclick="deleteProjectExpense('${e.id}')">ลบ</button></td></tr>`;
     }).join('')
   }</tbody></table>`:'<div class="empty">ยังไม่มีค่าใช้จ่าย</div>';
+  $('projectExpenseList').querySelectorAll('.project-expense-row').forEach(row=>{
+    const detail=row.querySelector('[data-expense-id]');
+    row.addEventListener('click',event=>{
+      if(event.target.closest('button')&&event.target.closest('button')!==detail)return;
+      openProjectExpenseDetail(detail.dataset.expenseId);
+    });
+  });
+}
+function openProjectExpenseDetail(id){
+  const project=projectById();
+  const expense=project?.expenses?.find(item=>item.id===id);
+  if(!expense)return;
+  const memberName=id=>escapeHtml(project.members.find(member=>member.id===id)?.name||'—');
+  const images=(Array.isArray(expense.images)?expense.images:[]).filter(isSafeTripImage);
+  $('detailBody').innerHTML=`
+    <h2>${escapeHtml(expense.name||'ค่าใช้จ่าย')}</h2>
+    <p><strong>${projectCurrency({currency:expense.currency||project.currency},expense.amount)}</strong> · ${escapeHtml(expense.date||'')}</p>
+    <p>ผู้จ่าย ${memberName(expense.payerId)} · ${escapeHtml(entryCategoryLabel(expense))}</p>
+    ${expense.note?`<p>${escapeHtml(expense.note)}</p>`:''}
+    ${expense.shares?.length?`<h3>การแบ่งยอด</h3><table><tbody>${expense.shares.map(share=>`<tr><td>${memberName(share.memberId)}</td><td>${projectCurrency(project,share.amount)}</td></tr>`).join('')}</tbody></table>`:''}
+    <h3>สลิป / หลักฐาน</h3>
+    <div class="bill-grid">${images.length?images.map((src,index)=>`<button type="button" class="btn btn-light project-proof-image" data-proof-index="${index}"><img src="${escapeHtml(src)}" alt="เปิดรูปหลักฐาน ${index+1}"></button>`).join(''):'<div class="muted">ไม่มีรูปแนบ</div>'}</div>`;
+  $('detailBody').querySelectorAll('[data-proof-index]').forEach(button=>{
+    button.addEventListener('click',()=>openTripImage(images[Number(button.dataset.proofIndex)]));
+  });
+  openDialogById('detailDialog');
 }
 function deleteProjectExpense(id){
   const p=projectById();

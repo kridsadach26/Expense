@@ -23,7 +23,7 @@ nav,.members,.fileActions{display:flex;flex-wrap:wrap;gap:9px;margin:13px 0}
 .summaryRow:last-child{border:0}.summaryRow small{display:block;color:var(--muted)}.summaryRow strong{text-align:right}
 summary{cursor:pointer;font-weight:700}details section{padding:12px}iframe{display:block;width:100%;height:70vh;border:1px solid var(--line);margin-top:12px}
 #itineraryImage{display:block;max-width:100%;margin:12px auto}#filename{overflow-wrap:anywhere}
-.expenseProof{grid-column:1/-1;justify-self:start}
+.clickableExpense{cursor:pointer}.clickableExpense:hover{background:#f1f6ef}.expenseProof{grid-column:1/-1;justify-self:start}
 dialog{width:min(720px,calc(100% - 24px));max-height:90vh;border:1px solid var(--line);border-radius:16px;padding:18px;color:var(--ink)}
 dialog::backdrop{background:#102b23b3}.proofHeader{display:flex;gap:12px;justify-content:space-between;align-items:start}
 #proofImage{max-width:100%;max-height:65vh;object-fit:contain;display:block;margin:12px auto}
@@ -89,6 +89,7 @@ dialog::backdrop{background:#102b23b3}.proofHeader{display:flex;gap:12px;justify
 </main>
 <dialog id="expenseProofDialog" aria-labelledby="proofTitle">
   <div class="proofHeader"><h2 id="proofTitle">หลักฐานค่าใช้จ่าย</h2><button id="closeProof" type="button">ปิด</button></div>
+  <p id="proofSummary"></p>
   <p id="proofStatus" role="status"></p>
   <img id="proofImage" alt="รูปหลักฐานค่าใช้จ่าย" hidden>
   <div class="fileActions">
@@ -96,5 +97,5 @@ dialog::backdrop{background:#102b23b3}.proofHeader{display:flex;gap:12px;justify
     <button id="nextProof" type="button">รูปถัดไป</button>
   </div>
 </dialog>
-<script src="/assets/project-guest.js?v=2.5.1" defer></script>
+<script src="/assets/project-guest.js?v=2.5.2" defer></script>
 </html>

@@ -105,12 +105,12 @@ function renderOverview(project) {
     item.name || 'ค่าใช้จ่าย', [item.date, item.central ? 'จ่ายจากกองกลาง' : 'จ่ายโดย ' + item.payer].filter(Boolean).join(' · '),
     money(item.value)
   ], 'ยังไม่มีค่าใช้จ่าย', (row, expense) => {
-    if (!expense.id || !expense.proofCount) return;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'expenseProof';
-    button.textContent = 'ดูหลักฐาน (' + expense.proofCount + ' รูป)';
-    button.onclick = () => openExpenseProof(expense);
+    button.textContent = expense.proofCount && expense.id ? 'ดูรายละเอียด · หลักฐาน ' + expense.proofCount + ' รูป' : 'ดูรายละเอียด';
+    row.classList.add('clickableExpense');
+    row.onclick = () => openExpenseProof(expense, money);
     row.append(button);
   });
   rows('payments', view.payments, item => [
@@ -137,7 +137,7 @@ function renderOverview(project) {
   element('overview').hidden = false;
 }
 
-function openExpenseProof(expense) {
+function openExpenseProof(expense, money) {
   const dialog = document.getElementById('expenseProofDialog');
   const image = document.getElementById('proofImage');
   const status = document.getElementById('proofStatus');
@@ -169,8 +169,15 @@ function openExpenseProof(expense) {
   dialog.onclose = () => { request++; image.removeAttribute('src'); };
   previous.onclick = () => { if (index > 0) { index--; load(); } };
   next.onclick = () => { if (index + 1 < expense.proofCount) { index++; load(); } };
+  document.getElementById('proofSummary').textContent = [
+    money(expense.value), expense.date, expense.central ? 'จ่ายจากกองกลาง' : 'ผู้จ่าย ' + expense.payer
+  ].filter(Boolean).join(' · ');
+  const hasProof = Boolean(expense.id && expense.proofCount);
+  previous.hidden = next.hidden = !hasProof || expense.proofCount < 2;
+  image.hidden = true;
+  status.textContent = 'ไม่มีรูปแนบ';
   dialog.showModal();
-  load();
+  if (hasProof) load();
 }
 
 function renderItinerary(itinerary) {
