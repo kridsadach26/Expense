@@ -8,7 +8,7 @@
 :root{color-scheme:light;--ink:#16342d;--green:#205f4d;--muted:#49665a;--paper:#fffefa;--line:#dce8dc}
 *{box-sizing:border-box}body{margin:0;background:#f0f4eb;color:var(--ink);font:16px/1.6 system-ui,sans-serif}
 main{max-width:860px;margin:auto;padding:24px 16px 64px}.hero{padding:clamp(24px,6vw,52px);border-radius:24px;background:#174638;color:#fff}
-.hero p{color:#e2f0df;margin:8px 0 0}.hero h1{font-size:clamp(2rem,6vw,3.5rem);line-height:1.18;margin:0;overflow-wrap:anywhere}
+.hero{background:linear-gradient(120deg,#143d36,#286452)}.guest-day{margin:18px 0 5px;color:var(--green);font-size:1rem}.hero p{color:#e2f0df;margin:8px 0 0}.hero h1{font-size:clamp(2rem,6vw,3.5rem);line-height:1.18;margin:0;overflow-wrap:anywhere}
 section,form,details{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:18px;margin:16px 0}
 h2{margin:0 0 10px;font-size:1.3rem}p{margin:.5em 0}label{display:block;margin:12px 0}input,select,textarea,button{font:inherit}
 label>input:not([type=checkbox]),label>select,label>textarea{display:block;width:100%;padding:9px;margin-top:4px;border:1px solid #abc3b9;border-radius:8px}
@@ -38,8 +38,9 @@ dialog::backdrop{background:#102b23b3}.proofHeader{display:flex;gap:12px;justify
   <nav id="projectNav" aria-label="เมนูทริป" hidden>
     <a id="scheduleLink" href="#projectSchedule">กำหนดการ</a>
     <a href="#tripMembers">เพื่อนร่วมทริป</a>
-    <a href="#tripFinance">ค่าใช้จ่าย</a>
-    <a id="submitLink" href="#submitRequest">ส่งรายการ</a>
+    <a href="#tripFinance">ดูค่าใช้จ่าย</a>
+    <a id="submitLink" href="#submitRequest" data-action="expense">ส่งค่าใช้จ่าย</a>
+    <a id="reportPaymentLink" href="#submitRequest" data-action="payment">แจ้งว่าโอนแล้ว</a>
   </nav>
   <div id="overview" hidden>
     <section id="itinerary" hidden>
@@ -66,7 +67,7 @@ dialog::backdrop{background:#102b23b3}.proofHeader{display:flex;gap:12px;justify
     </details>
   </div>
   <form id="submitRequest" hidden>
-    <h2>ส่งรายการให้เจ้าของตรวจสอบ</h2>
+    <h2 id="guestRequestTitle">ส่งค่าใช้จ่าย</h2>
     <label>ชื่อผู้ส่ง<select name="memberId" required></select></label>
     <label>ประเภทรายการ<select name="action"><option value="expense">ค่าใช้จ่ายที่ออกเอง</option><option value="payment">แจ้งโอนเงินให้สมาชิก</option></select></label>
     <label>วันที่<input name="date" type="date" required></label>
@@ -97,5 +98,5 @@ dialog::backdrop{background:#102b23b3}.proofHeader{display:flex;gap:12px;justify
     <button id="nextProof" type="button">รูปถัดไป</button>
   </div>
 </dialog>
-<script src="/assets/project-guest.js?v=2.5.2" defer></script>
+<script src="/assets/project-guest.js?v=2.6.0" defer></script>
 </html>

@@ -1,0 +1,22 @@
+.trip-hero{background:linear-gradient(120deg,#143d36,#286452);color:white;padding:clamp(20px,4vw,38px);border-radius:22px;margin:0 0 14px}
+.trip-hero h2{font-size:clamp(25px,5vw,42px);margin:14px 0 4px;overflow-wrap:anywhere}
+.trip-hero p{margin:0;color:#e4f2e9}.trip-hero-top,.trip-quick{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.trip-hero-top{justify-content:space-between}.trip-quick{margin-top:18px}.trip-quick .btn-primary{background:#f5bc73;color:#2e210d}
+.trip-options{margin:12px 0}.trip-options summary,.trip-fold summary{cursor:pointer;font-weight:700;padding:8px 0}
+.trip-options .project-toolbar{padding:8px 0}.trip-overview-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin:12px 0}
+.trip-overview-grid h3{margin:0 0 8px}.trip-overview-grid p{margin:4px 0 0;overflow-wrap:anywhere}
+.trip-day{margin:16px 0 5px;font-size:15px;color:#205849}.trip-tabs{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0}
+.trip-tabs button{padding:9px 13px;border:1px solid #dfe7e3;background:#fff;border-radius:12px;cursor:pointer}
+.trip-tabs button.active{background:#205849;border-color:#205849;color:#fff}.trip-fold{margin:12px 0}
+#projectExpenseList{overflow-x:auto}#projectExpenseList table{min-width:600px}
+#projectList .project-card{border-top:4px solid #47866f}
+@media(max-width:650px){.trip-overview-grid{grid-template-columns:1fr}.trip-hero{border-radius:16px}.trip-tabs button{flex:1 0 auto}}
+@media(max-width:650px){
+  #projectExpenseList table{min-width:0}
+  #projectExpenseList thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  #projectExpenseList table,#projectExpenseList tbody{display:block}
+  #projectExpenseList tr{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;border-bottom:1px solid #e8efeb;padding:12px 0}
+  #projectExpenseList td{display:block;min-width:0;border:0;padding:0;overflow-wrap:anywhere}
+  #projectExpenseList td[data-label]::before{display:block;content:attr(data-label);font-size:12px;color:#526c62}
+  #projectExpenseList .trip-expense-name{grid-column:1/-1;grid-row:1}
+}

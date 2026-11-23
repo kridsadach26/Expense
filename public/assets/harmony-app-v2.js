@@ -223,7 +223,7 @@ function handleProjectDeepLink(){
   const projectId=initialParams.get('project');if(!projectId||projectDeepLinkOpened)return false;
   if(!projects.some(p=>p.id===projectId))return false;
   projectDeepLinkOpened=true;openProject(projectId);
-  const tab=initialParams.get('tab');if(tab)document.querySelector(`[data-project-tab="${String(tab).replace(/[^a-z]/gi,'')}"]`)?.click();
+  const tab=initialParams.get('tab');if(tab)selectProjectTab(tab==='balances'?'settlements':tab);
   return true;
 }
 let activeUser = urlUser || sessionStorage.getItem('home-expense-user') || localStorage.getItem('home-expense-user') || '';
@@ -1171,39 +1171,39 @@ function projectCurrency(p,amount){
 function toggleNewProjectTravelFields(){
   const travel=$('newProjectType')?.value==='international_trip';
   $('newProjectDestinationWrap')?.classList.toggle('hidden',!travel);
-  $('newProjectCitiesWrap')?.classList.toggle('hidden',!travel);
+  $('newProjectCurrencyWrap').classList.toggle('hidden',!travel);
+  if(!travel)$('newProjectCurrency').value='THB';
 }
 $('newProjectType')?.addEventListener('change',toggleNewProjectTravelFields);
 function openProjectCreate(){
   $('newProjectName').value='';
-  $('newProjectType').value='general';
+  $('newProjectType').value='domestic_trip';
+  $('newProjectCurrency').value='THB';
   $('newProjectDestination').value='';
   $('newProjectCities').value='';
   toggleNewProjectTravelFields();
   $('newProjectStart').value=today();
   $('newProjectEnd').value='';
-  $('newProjectMembers').value='Toey, Perla';
+  $('newProjectMembers').value=activeUser||'';
   $('newProjectNote').value='';
   openDialogById('projectCreateDialog');
 }
 function createProject(){
   const name=$('newProjectName').value.trim();
-  if(!name)return alert('กรุณาระบุชื่อโปรเจกต์');
+  if(!name)return alert('กรุณาระบุชื่อทริป');
+  if($('newProjectEnd').value&&$('newProjectStart').value>$('newProjectEnd').value)return alert('วันสิ้นสุดต้องไม่มาก่อนวันเริ่ม');
   const names=$('newProjectMembers').value.split(',').map(x=>x.trim()).filter(Boolean);
   const uniq=[...new Set(names)];
-  const projectType=$('newProjectType')?.value||'general';
+  const projectType=$('newProjectType').value;
   const p={
     id:newId(),name,start:$('newProjectStart').value,end:$('newProjectEnd').value,
     currency:$('newProjectCurrency').value,note:$('newProjectNote').value.trim(),status:'active',type:projectType,
     createdAt:new Date().toISOString(),owner:activeUser||'Toey',
     members:uniq.map(n=>({id:newId(),name:n,active:true})),
     expenses:[],pending:[],settlements:[],
-    ...(projectType==='international_trip'?{travelPlan:{destination:$('newProjectDestination')?.value.trim()||'',cities:$('newProjectCities')?.value.trim()||'',targetBudget:0,emergencyPercent:10,transportRef:'',accommodation:'',importantNote:'',proposals:[],itinerary:[]}}:{})
+    travelPlan:{destination:projectType==='domestic_trip'?'ไทย':$('newProjectDestination').value.trim(),cities:$('newProjectCities').value.trim(),proposals:[],itinerary:[],fundContributions:[]}
   };
-  if(projectType==='international_trip'){
-    p.travelPlan.fundContributions=[];
-    p.travelPlan.fundHolderId=p.members.find(member=>member.name===p.owner)?.id||p.members[0]?.id||'';
-  }
+  p.travelPlan.fundHolderId=p.members.find(member=>member.name===p.owner)?.id||p.members[0]?.id||'';
   projects.unshift(p);saveProjects();$('projectCreateDialog').close();renderProjects();openProject(p.id);
 }
 function renderProjects(){
@@ -1214,24 +1214,37 @@ function renderProjects(){
       <h3>${escapeHtml(p.name)} ${p.type==='international_trip'?'<span class="travel-badge">✈️ ต่างประเทศ</span>':''}</h3>
       <div class="muted">${p.start||'-'} ${p.end?'ถึง '+p.end:''}${p.type==='international_trip'&&p.travelPlan?.destination?` · ${escapeHtml(p.travelPlan.destination)}`:''}</div>
       <div style="margin:12px 0"><strong>${projectCurrency(p,total)}</strong> · ${p.expenses?.length||0} รายการ · ${p.members?.length||0} คน${p.type==='international_trip'?` · ${(p.travelPlan?.proposals||[]).length} ข้อเสนอ`:''}</div>
-      <button class="btn btn-primary" onclick="openProject('${p.id}')">เปิดโปรเจกต์</button>
+      <button class="btn btn-primary" onclick="openProject('${p.id}')">เปิดทริป</button>
     </div>`;
-  }).join(''):'<div class="card empty">ยังไม่มีโปรเจกต์ กด “สร้างโปรเจกต์” เพื่อเริ่มใช้งาน</div>';
+  }).join(''):'<div class="card empty">ยังไม่มีทริป กด “สร้างทริป” เพื่อเริ่มใช้งาน</div>';
 }
 function openProject(id){
   currentProjectId=id;
   renderProjectDetail();
+  selectProjectTab('overview');
   showPage('projectDetail');
+  if(projectById()?.owner===activeUser)refreshProjectInbox();
 }
 function renderProjectDetail(){
   const p=projectById(); if(!p)return;
   $('projectTitle').textContent=p.name;
+  const members=(p.members||[]).filter(member=>member.active!==false);
+  $('tripHeaderMeta').textContent=[[p.start,p.end].filter(Boolean).join(' ถึง '),p.travelPlan?.destination,p.travelPlan?.cities,members.length+' คน'].filter(Boolean).join(' · ');
+  $('tripOverviewMembers').innerHTML=members.map(member=>`<span class="member-chip">${escapeHtml(member.name)}</span>`).join('')||'ยังไม่มีสมาชิก';
+  const itinerary=(p.travelPlan?.itinerary||[]).slice().sort((a,b)=>((a.date||'')+(a.time||'')).localeCompare((b.date||'')+(b.time||'')));
+  const next=itinerary.find(item=>item.date>=today())||itinerary[0];
+  $('tripOverviewNext').textContent=next?[next.date,next.time,next.title,next.place].filter(Boolean).join(' · '):'ยังไม่มีแผนรายวัน';
+  $('tripOverviewAttachment').textContent=p.sharedItinerary?.name||'';
+  $('tripOverviewPlanButton').hidden=!(p.type==='international_trip'||p.travelPlan);
+  $('quickTripExpense').hidden=p.status!=='active';
+  $('shareTripButton').hidden=p.owner!==activeUser||p.status==='cancelled';
+  updateTripInboxLabel(p);
   $('projectTotal').textContent=projectCurrency(p,(p.expenses||[]).reduce((s,e)=>s+expenseBaseAmount(e),0));
   $('projectCount').textContent=p.expenses?.length||0;
   $('projectMemberCount').textContent=p.members?.length||0;
   $('projectStatus').textContent=p.status==='closed'?'จบโปรเจกต์แล้ว':p.status==='cancelled'?'ยกเลิกแล้ว':'กำลังดำเนินการ';
   $('deleteCancelledProjectBtn').classList.toggle('hidden',p.status!=='cancelled');
-  $('closeProjectBtn').textContent=p.status==='closed'?'เปิดโปรเจกต์อีกครั้ง':'ปิดโปรเจกต์';
+  $('closeProjectBtn').textContent=p.status==='closed'?'เปิดทริปอีกครั้ง':'ปิดทริป';
   $('closeProjectBtn').disabled=p.status==='cancelled';
   $('cancelProjectBtn').disabled=p.status==='cancelled';
   $('cancelProjectBtn').classList.toggle('hidden',p.status==='cancelled');
@@ -1248,16 +1261,26 @@ function renderProjectDetail(){
   renderProjectSettlementHeadline();
   renderProjectPending();
 }
-document.querySelectorAll('[data-project-tab]').forEach(btn=>btn.addEventListener('click',()=>{
-  if(btn.classList.contains('hidden'))return;
-  document.querySelectorAll('[data-project-tab]').forEach(b=>b.classList.toggle('active',b===btn));
-  document.querySelectorAll('.project-tab-panel').forEach(x=>x.classList.add('hidden'));
-  const panel=$('projectTab'+btn.dataset.projectTab.charAt(0).toUpperCase()+btn.dataset.projectTab.slice(1));
-  if(panel)panel.classList.remove('hidden');
-  if(btn.dataset.projectTab==='travel')renderTripPlanner();
-  if(btn.dataset.projectTab==='pending')refreshProjectInbox();
-}));
-
+function updateTripInboxLabel(project){
+  const count=project.pending?.length||0;
+  const button=$('quickTripPending');
+  button.classList.toggle('hidden',project.owner!==activeUser||count===0);
+  button.textContent='รออนุมัติ ('+count+')';
+  $('tripInboxTab').textContent=count?'รอตรวจสอบ ('+count+')':'รอตรวจสอบ';
+}
+function selectProjectTab(name){
+  const selected=[...document.querySelectorAll('[data-project-tab]')].find(button=>button.dataset.projectTab===name);
+  if(!selected||selected.classList.contains('hidden'))return;
+  document.querySelectorAll('[data-project-tab]').forEach(button=>{
+    button.classList.toggle('active',button===selected);
+    button.setAttribute('aria-pressed',String(button===selected));
+  });
+  const panel=$('projectTab'+name.charAt(0).toUpperCase()+name.slice(1));
+  document.querySelectorAll('.project-tab-panel').forEach(item=>item.classList.toggle('hidden',item!==panel));
+  if(name==='travel')renderTripPlanner();
+  if(name==='pending')refreshProjectInbox();
+}
+document.querySelectorAll('[data-project-tab]').forEach(button=>button.addEventListener('click',()=>selectProjectTab(button.dataset.projectTab)));
 
 const TRIP_CATEGORIES=[
   ['flight','✈️ เที่ยวบิน'],['hotel','🏨 ที่พัก'],['transport','🚆 การเดินทาง'],['food','🍜 อาหาร'],
@@ -1460,8 +1483,30 @@ function renderTripPlanner(){
     ${(x.comments||[]).slice(-3).map(c=>`<div class="travel-comment"><strong>${escapeHtml(c.by)}:</strong> ${escapeHtml(c.text)}</div>`).join('')}
     <div class="travel-proposal-actions"><button class="btn btn-light ${voted?'travel-vote':''}" onclick="voteTripProposal('${x.id}')">👍 ${(x.votes||[]).length}</button><button class="btn btn-light" onclick="addTripProposalComment('${x.id}')">💬 ${(x.comments||[]).length}</button>${url?`<a class="btn btn-light" href="${escapeHtml(url)}" target="_blank" rel="noopener">เปิดลิงก์</a>`:''}<button class="btn btn-light" onclick="openTripProposal('${x.id}')">แก้ไข</button>${x.status==='proposed'?`<button class="btn btn-light" onclick="setTripProposalStatus('${x.id}','shortlisted')">เข้ารอบ</button>`:''}${x.status!=='approved'&&x.status!=='booked'?`<button class="btn btn-primary" onclick="setTripProposalStatus('${x.id}','approved')">อนุมัติ</button>`:''}${x.status==='approved'?`<button class="btn btn-dark" onclick="setTripProposalStatus('${x.id}','booked')">จองแล้ว</button>`:''}<button class="btn btn-danger" onclick="deleteTripProposal('${x.id}')">ลบ</button></div></article>`;
   }).join(''):'<div class="travel-empty">ยังไม่มีข้อเสนอ กด “เสนอรายการ” เพื่อให้สมาชิกช่วยกันเพิ่มโรงแรม เที่ยวบิน ร้านอาหาร หรือสถานที่เที่ยว</div>';
-  const itinerary=[...t.itinerary].sort((a,b)=>`${a.date||''} ${a.time||''}`.localeCompare(`${b.date||''} ${b.time||''}`));
-  $('tripItineraryList').innerHTML=itinerary.length?itinerary.map(x=>`<div class="travel-itinerary-item"><div class="travel-itinerary-time">${x.date||'-'}<br>${x.time||''}</div><div><strong>${escapeHtml(x.title)}</strong>${x.place?`<div class="muted">📍 ${escapeHtml(x.place)}</div>`:''}${x.note?`<div class="muted">${escapeHtml(x.note)}</div>`:''}<div class="muted">เสนอโดย ${escapeHtml(tripMemberName(p,x.proposedBy))}</div></div><button class="btn btn-light" onclick="openTripItinerary('${x.id}')">แก้ไข</button><button class="btn btn-danger" onclick="deleteTripItinerary('${x.id}')">ลบ</button></div>`).join(''):'<div class="travel-empty">ยังไม่มีแผนรายวัน</div>';
+  const itinerary=[...t.itinerary].sort((a,b)=>((a.date||'')+(a.time||'')).localeCompare((b.date||'')+(b.time||'')));
+  const days=new Map();
+  itinerary.forEach(item=>{
+    const day=item.date||'ยังไม่กำหนดวัน';
+    if(!days.has(day))days.set(day,[]);
+    days.get(day).push(item);
+  });
+  $('tripItineraryList').innerHTML=[...days].map(([date,items])=>`
+    <h4 class="trip-day">${escapeHtml(date)}</h4>
+    ${items.map(item=>`<div class="travel-itinerary-item">
+      <div class="travel-itinerary-time">${escapeHtml(item.time||'—')}</div>
+      <div><strong>${escapeHtml(item.title)}</strong>
+        ${item.place?`<div class="muted">${escapeHtml(item.place)}</div>`:''}
+        ${item.note?`<div class="muted">${escapeHtml(item.note)}</div>`:''}
+      </div>
+      <button class="btn btn-light" type="button" data-itinerary-edit="${escapeHtml(item.id)}">แก้ไข</button>
+      <button class="btn btn-danger" type="button" data-itinerary-delete="${escapeHtml(item.id)}">ลบ</button>
+    </div>`).join('')}`).join('')||'<div class="travel-empty">ยังไม่มีแผนรายวัน</div>';
+  $('tripItineraryList').querySelectorAll('[data-itinerary-edit]').forEach(button=>{
+    button.onclick=()=>openTripItinerary(button.dataset.itineraryEdit);
+  });
+  $('tripItineraryList').querySelectorAll('[data-itinerary-delete]').forEach(button=>{
+    button.onclick=()=>deleteTripItinerary(button.dataset.itineraryDelete);
+  });
   const categoryTotals=TRIP_CATEGORIES.map(([key,label])=>({key,label,total:relevant.filter(x=>x.category===key).reduce((s,x)=>s+tripProposalBaseAmount(p,x),0)})).filter(x=>x.total>0);const max=Math.max(1,...categoryTotals.map(x=>x.total));
   $('tripBudgetByCategory').innerHTML=categoryTotals.length?categoryTotals.map(x=>`<div class="travel-budget-row"><div class="travel-budget-head"><span>${x.label}</span><strong>${projectCurrency(p,x.total)}</strong></div><div class="travel-budget-bar"><div style="width:${Math.min(100,x.total/max*100)}%"></div></div></div>`).join(''):'<div class="travel-empty">ยังไม่มีประมาณการ</div>';
   const budget=t.targetBudget||0;const remaining=budget-(estimated+emergency);$('tripImportantInfo').innerHTML=`<div class="travel-overview">${t.transportRef?`<span>✈️ ${escapeHtml(t.transportRef)}</span>`:''}${t.accommodation?`<span>🏨 ${escapeHtml(t.accommodation)}</span>`:''}${budget?`<span>🎯 งบ ${projectCurrency(p,budget)}</span><span class="${remaining>=0?'income':'expense'}">${remaining>=0?'เหลือ':'เกิน'} ${projectCurrency(p,Math.abs(remaining))}</span>`:''}<span>🧰 สำรอง ${Number(t.emergencyPercent||0)}%</span></div>${t.importantNote?`<div class="muted" style="white-space:pre-wrap">${escapeHtml(t.importantNote)}</div>`:'<div class="muted">ยังไม่มีข้อมูลสำคัญ</div>'}`;
@@ -1478,7 +1523,11 @@ async function shareTripPlan(button){
     }else{
       await navigator.clipboard.writeText(await linkPromise);
     }
-    showToast('คัดลอกลิงก์แผนทริปแล้ว');
+    if(projectById()?.id===project.id){
+      openProjectShare();
+      $('projectShareLink').value=await linkPromise;
+      showToast('คัดลอกลิงก์ทริปแล้ว');
+    }
   }catch{
     try{
       const link=await linkPromise;
@@ -1749,7 +1798,7 @@ function renderProjectExpenses(){
       const payer=p.members.find(m=>m.id===e.payerId)?.name||'-';
       const names=(e.shares||[]).map(s=>p.members.find(m=>m.id===s.memberId)?.name).filter(Boolean).join(', ');
       const proofCount=(Array.isArray(e.images)?e.images:[]).filter(isSafeTripImage).length;
-      return `<tr class="project-expense-row"><td>${escapeHtml(e.date||'')}</td><td><button type="button" class="project-expense-link" data-expense-id="${escapeHtml(e.id)}">${escapeHtml(e.name||'ค่าใช้จ่าย')}</button>${proofCount?`<span class="badge">หลักฐาน ${proofCount} รูป</span>`:''}${e.fundSource==='central'?` <span class="trip-fund-badge">💰 กองกลาง</span>`:''}<div class="muted">${escapeHtml(entryCategoryLabel(e))}</div>${(e.tags||[]).length?`<div class="history-tags">${e.tags.map(tag=>`<span>#${escapeHtml(tag)}</span>`).join('')}</div>`:''}${e.note?`<div class="muted">${escapeHtml(e.note)}</div>`:''}</td><td>${escapeHtml(payer)}</td><td>${projectCurrency({currency:e.currency||p.currency},e.amount)}${(e.currency&&e.currency!==p.currency)?`<div class="muted">≈ ${projectCurrency(p,expenseBaseAmount(e))} · เรท ${Number(e.exchangeRate||1).toLocaleString()}</div>`:''}</td><td>${escapeHtml(names)}</td><td><button class="btn btn-danger" onclick="deleteProjectExpense('${e.id}')">ลบ</button></td></tr>`;
+      return `<tr class="project-expense-row"><td data-label="วันที่">${escapeHtml(e.date||'')}</td><td class="trip-expense-name"><button type="button" class="project-expense-link" data-expense-id="${escapeHtml(e.id)}">${escapeHtml(e.name||'ค่าใช้จ่าย')}</button>${proofCount?`<span class="badge">หลักฐาน ${proofCount} รูป</span>`:''}${e.fundSource==='central'?` <span class="trip-fund-badge">💰 กองกลาง</span>`:''}<div class="muted">${escapeHtml(entryCategoryLabel(e))}</div>${(e.tags||[]).length?`<div class="history-tags">${e.tags.map(tag=>`<span>#${escapeHtml(tag)}</span>`).join('')}</div>`:''}${e.note?`<div class="muted">${escapeHtml(e.note)}</div>`:''}</td><td data-label="ผู้จ่าย">${escapeHtml(payer)}</td><td data-label="ยอด">${projectCurrency({currency:e.currency||p.currency},e.amount)}${(e.currency&&e.currency!==p.currency)?`<div class="muted">≈ ${projectCurrency(p,expenseBaseAmount(e))} · เรท ${Number(e.exchangeRate||1).toLocaleString()}</div>`:''}</td><td data-label="ร่วมหาร">${escapeHtml(names)}</td><td><button class="btn btn-danger" onclick="deleteProjectExpense('${e.id}')">ลบ</button></td></tr>`;
     }).join('')
   }</tbody></table>`:'<div class="empty">ยังไม่มีค่าใช้จ่าย</div>';
   $('projectExpenseList').querySelectorAll('.project-expense-row').forEach(row=>{
@@ -2139,6 +2188,7 @@ function revokeProjectShare(){
 }
 function renderProjectPending(){
   const project=projectById();
+  updateTripInboxLabel(project);
   const owner=project.owner===activeUser;
   $('projectPending').innerHTML=(project.pending||[]).map(item=>{
     const member=id=>escapeHtml(project.members.find(m=>m.id===id)?.name||'-');

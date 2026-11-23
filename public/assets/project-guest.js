@@ -40,6 +40,7 @@ async function compressProof(file) {
 
 function updateForm() {
   const payment = fields.action.value === 'payment';
+  document.getElementById('guestRequestTitle').textContent = payment ? 'แจ้งว่าโอนแล้ว' : 'ส่งค่าใช้จ่าย';
   for (const [id, active] of [['expenseFields', !payment], ['paymentFields', payment]]) {
     const group = document.getElementById(id);
     group.hidden = group.disabled = !active;
@@ -116,9 +117,23 @@ function renderOverview(project) {
   rows('payments', view.payments, item => [
     item.from + ' → ' + item.to, item.date || '', money(item.value)
   ], 'ยังไม่มีรายการชำระที่บันทึกแล้ว');
-  rows('schedule', view.schedule, item => [
-    item.title || 'กำหนดการ', [item.date, item.place].filter(Boolean).join(' · '), item.time || ''
-  ], 'ยังไม่มีแผนรายวัน');
+  const itineraryRows = new Map();
+  for (const item of view.schedule) {
+    const date = item.date || 'ยังไม่กำหนดวัน';
+    if (!itineraryRows.has(date)) itineraryRows.set(date, []);
+    itineraryRows.get(date).push(item);
+  }
+  if (!itineraryRows.size) element('schedule').textContent = 'ยังไม่มีแผนรายวัน';
+  let day = 0;
+  for (const [date, items] of itineraryRows) {
+    const title = document.createElement('h3');
+    title.className = 'guest-day';
+    title.textContent = date;
+    const list = document.createElement('div');
+    list.id = 'guestDay' + (++day);
+    element('schedule').append(title, list);
+    rows(list.id, items, item => [item.title || 'กำหนดการ', item.place || '', item.time || ''], '');
+  }
   for (const member of project.members) {
     const label = document.createElement('span');
     label.textContent = member.name;
@@ -127,9 +142,14 @@ function renderOverview(project) {
   if (project.itinerary && !view.schedule.length) element('scheduleLink').href = '#itinerary';
   element('projectNav').hidden = false;
   element('projectNav').addEventListener('click', event => {
-    const href = event.target.closest('a')?.getAttribute('href');
+    const link = event.target.closest('a');
+    const href = link?.getAttribute('href');
     if (!href) return;
     event.preventDefault();
+    if (link.dataset.action) {
+      fields.action.value = link.dataset.action;
+      updateForm();
+    }
     const target = element(href.slice(1));
     if (target?.tagName === 'DETAILS') target.open = true;
     target?.scrollIntoView();
@@ -269,7 +289,8 @@ async function initialize() {
       fields.action.querySelector('[value="payment"]').defaultSelected = true;
     }
     form.hidden = !project.members.length;
-    document.getElementById('submitLink').hidden = form.hidden;
+    document.getElementById('submitLink').hidden = form.hidden || !project.open;
+    document.getElementById('reportPaymentLink').hidden = form.hidden;
     updateForm();
   } catch (error) {
     status.textContent = error.message;
