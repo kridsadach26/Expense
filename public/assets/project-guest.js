@@ -4,6 +4,7 @@ const status = document.getElementById('status');
 const result = document.getElementById('result');
 const fields = form.elements;
 let requestId = crypto.randomUUID();
+let paymentPairs = [];
 
 async function send(payload) {
   const res = await fetch('/api/project-share', {
@@ -45,7 +46,9 @@ function updateForm() {
     const group = document.getElementById(id);
     group.hidden = group.disabled = !active;
   }
-  for (const option of fields.toId.options) option.disabled = option.value === fields.memberId.value && !!option.value;
+  const sender = fields.memberId.value;
+  const pair = paymentPairs.find(members => members.includes(sender));
+  for (const option of fields.toId.options) option.disabled = Boolean(option.value && (option.value === sender || pair?.includes(option.value)));
   if (fields.toId.selectedOptions[0]?.disabled) fields.toId.value = '';
 }
 
@@ -264,6 +267,7 @@ async function initialize() {
   try {
     if (!token) throw new Error('กรุณาเปิดจากลิงก์ที่ได้รับจากเจ้าของโปรเจกต์');
     const project = await send({ action: 'view' });
+    paymentPairs = project.paymentPairs || [];
     document.getElementById('title').textContent = project.name;
     renderOverview(project);
     status.textContent = project.open ? '' : 'ทริปนี้ปิดแล้ว';

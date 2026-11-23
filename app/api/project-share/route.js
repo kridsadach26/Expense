@@ -113,6 +113,7 @@ export async function POST(request) {
           currency: project.currency || 'THB',
           open: project.status === 'active',
           members: members.map(({ id, name }) => ({ id, name })),
+          paymentPairs: project.paymentPairs || [],
           overview: projectShareOverview(project),
           itinerary: stored
             ? { name: attachment.name, type: itineraryFileType(attachment.path), stored: true }
@@ -146,7 +147,8 @@ export async function POST(request) {
           return response({ error: 'กรุณาระบุรายการ ผู้ร่วมหาร และแนบรูปหลักฐาน' }, 400);
         }
         Object.assign(item, { name, payerId: memberId, participantIds, images: [image] });
-      } else if (action === 'payment' && body.toId !== memberId && members.some(m => m.id === body.toId)) {
+      } else if (action === 'payment' &&
+                 !(project.paymentPairs || []).some(pair => pair.includes(memberId) && pair.includes(body.toId)) && body.toId !== memberId && members.some(m => m.id === body.toId)) {
         const method = ['transfer', 'cash', 'wallet', 'other'].includes(body.method) ? body.method : 'other';
         Object.assign(item, { kind: 'payment', toId: body.toId, method });
       } else {

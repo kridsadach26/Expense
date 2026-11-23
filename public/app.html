@@ -454,7 +454,7 @@
 
 .project-expense-row{cursor:pointer}.project-expense-row:hover{background:#fff8ef}.project-expense-link{color:inherit;background:none;border:0;text-align:left;text-decoration:underline;font-weight:700;padding:0;margin-right:8px;cursor:pointer}.project-proof-image{align-self:start;padding:4px}.project-proof-image img{display:block}
 </style>
-<link rel="stylesheet" href="/assets/trips.css?v=2.6.0">
+<link rel="stylesheet" href="/assets/trips.css?v=2.6.1">
 </head>
 <body class="app-loading">
 
@@ -1099,13 +1099,23 @@
 </dialog>
 
 <dialog id="memberDialog">
-  <div class="dialog-head"><strong>สมาชิกโปรเจกต์</strong><button class="btn btn-light" onclick="memberDialog.close()">ปิด</button></div>
+  <div class="dialog-head"><strong>สมาชิกทริป</strong><button class="btn btn-light" onclick="memberDialog.close()">ปิด</button></div>
   <div class="dialog-body">
     <div style="display:flex;gap:8px">
       <input id="newMemberName" placeholder="ชื่อสมาชิกใหม่">
       <button class="btn btn-primary" onclick="addProjectMember()">เพิ่ม</button>
     </div>
     <div id="memberManagerList" style="margin-top:14px"></div>
+    <section class="trip-pair-settings">
+      <h3>จ่ายร่วมกันเป็นคู่</h3>
+      <p class="muted">รวมยอดของสมาชิกสองคนตอนเคลียร์ยอด ค่าใช้จ่ายยังระบุคนจ่ายและคนร่วมหารตามจริง</p>
+      <div id="memberPairList"></div>
+      <div class="trip-pair-form">
+        <div><label for="pairFirstMember">สมาชิกคนที่ 1</label><select id="pairFirstMember"></select></div>
+        <div><label for="pairSecondMember">สมาชิกคนที่ 2</label><select id="pairSecondMember"></select></div>
+        <button type="button" id="addTripPair" class="btn btn-primary" onclick="addProjectPaymentPair()">จับคู่</button>
+      </div>
+    </section>
   </div>
 </dialog>
 
@@ -1340,6 +1350,6 @@
 <dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="closeDialogById('notificationCenterDialog')">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
 <div id="toastStack" class="toast-stack"></div>
 
-<script src="/assets/harmony-app-v2.js?v=2.6.0" defer></script>
+<script src="/assets/harmony-app-v2.js?v=2.6.1" defer></script>
 </body>
 </html>
