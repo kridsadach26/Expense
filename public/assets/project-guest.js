@@ -117,6 +117,9 @@ function renderOverview(project) {
     row.onclick = () => openExpenseProof(expense, money);
     row.append(button);
   });
+  rows('guestTransfers', view.transfers || [], item => [
+    item.from + ' → ' + item.to, 'ยอดที่ต้องโอนคืน', money(item.amount)
+  ], 'ไม่มีรายการที่ต้องโอนคืน');
   rows('payments', view.payments, item => [
     item.from + ' → ' + item.to, item.date || '', money(item.value)
   ], 'ยังไม่มีรายการชำระที่บันทึกแล้ว');
@@ -160,12 +163,102 @@ function renderOverview(project) {
       updateForm();
     }
     const target = element(href.slice(1));
-    if (target?.tagName === 'DETAILS') target.open = true;
+    const section = target?.closest('details');
+    if (section) section.open = true;
     target?.scrollIntoView();
   });
   element('overview').hidden = false;
 }
 
+let collectionView;
+let collectionRequestId=crypto.randomUUID();
+const collectionForm=document.getElementById('guestCollectionForm');
+const collectionFields=collectionForm.elements;
+function updateCollectionForm(){
+  const round=collectionView?.collections.find(item=>item.id===collectionFields.collectionId.value);
+  const member=collectionFields.memberId.value;
+  const pair=(collectionView?.paymentPairs||[]).find(ids=>ids.includes(member)&&ids.every(id=>round?.targets.some(target=>target.id===id)));
+  const pairLabel=document.getElementById('guestCollectionPair');
+  pairLabel.hidden=!pair;
+  if(!pair)collectionFields.together.checked=false;
+  const ids=collectionFields.together.checked&&pair?pair:[member];
+  const due=(round?.targets||[]).filter(item=>ids.includes(item.id))
+    .reduce((sum,item)=>sum+Math.max(0,item.cents-item.paid-item.pending),0);
+  const value=(due/100).toFixed(2);
+  collectionFields.amount.value=due?value:'';
+  collectionFields.amount.max=value;
+  document.getElementById('guestCollectionSend').disabled=!due;
+  document.getElementById('guestCollectionDue').textContent=member?'ยอดที่ยังส่งได้ '+value+' '+collectionView.currency:'เลือกชื่อเพื่อดูยอดที่ยังส่งได้';
+}
+function renderGuestCollections(project){
+  const rounds=project.collections||[];
+  collectionView={...project,collections:rounds};
+  document.getElementById('collectionNav').hidden=!rounds.length;
+  document.getElementById('guestCollections').hidden=!rounds.length;
+  const list=document.getElementById('guestCollectionList');
+  const names=new Map(project.members.map(member=>[member.id,member.name]));
+  const money=cents=>new Intl.NumberFormat('th-TH',{style:'currency',currency:project.currency}).format(cents/100);
+  list.replaceChildren();
+  for(const round of rounds){
+    const card=document.createElement('div');
+    card.className='guest-collection-round';
+    const title=document.createElement('h3');
+    title.textContent=round.name;
+    const meta=document.createElement('p');
+    meta.textContent=[round.closed?'ปิดรับแล้ว':'เปิดรับ',round.dueDate?'ครบกำหนด '+round.dueDate:''].filter(Boolean).join(' · ');
+    card.append(title,meta);
+    if(round.account?.number){
+      const account=document.createElement('p');
+      account.textContent=[round.account.name,round.account.number].filter(Boolean).join(' · ');
+      card.append(account);
+      const copy=document.createElement('button');copy.type='button';copy.textContent='คัดลอกเลขบัญชี';
+      copy.onclick=async()=>{try{await navigator.clipboard.writeText(round.account.number);copy.textContent='คัดลอกแล้ว'}catch{window.prompt('คัดลอกเลขบัญชี',round.account.number)}};
+      card.append(copy);
+    }
+    if(round.qr){
+      const qr=document.createElement('img');qr.src=round.qr;qr.alt='QR สำหรับโอนเข้ากองกลาง';qr.className='guest-collection-qr';card.append(qr);
+    }
+    for(const target of round.targets){
+      const row=document.createElement('p');
+      const state=target.paid>=target.cents?'ครบแล้ว':target.pending?'รอตรวจ '+money(target.pending):target.paid?'จ่ายบางส่วน':'ยังไม่จ่าย';
+      row.textContent=(names.get(target.id)||target.name||'สมาชิกเดิม')+' · '+money(target.paid)+' / '+money(target.cents)+' · '+state;
+      card.append(row);
+    }
+    list.append(card);
+  }
+  const active=project.open?rounds.filter(round=>!round.closed):[];
+  const selectedRound=collectionFields.collectionId.value;
+  const selectedMember=collectionFields.memberId.value;
+  collectionForm.hidden=!active.length;
+  collectionFields.collectionId.replaceChildren(...active.map(round=>new Option(round.name,round.id)));
+  if(active.some(round=>round.id===selectedRound))collectionFields.collectionId.value=selectedRound;
+  collectionFields.memberId.replaceChildren(new Option('เลือกชื่อ',''),...project.members.map(member=>new Option(member.name,member.id)));
+  if(names.has(selectedMember))collectionFields.memberId.value=selectedMember;
+  if(!collectionFields.date.value)collectionFields.date.value=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok'}).format(new Date());
+  updateCollectionForm();
+}
+for(const name of ['collectionId','memberId','together'])collectionFields[name].addEventListener('change',updateCollectionForm);
+collectionForm.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const status=document.getElementById('guestCollectionStatus'), button=document.getElementById('guestCollectionSend');
+  if(button.disabled)return;
+  button.disabled=true;
+  status.textContent='กำลังส่งสลิป…';
+  try{
+    const fields=new FormData(collectionForm);
+    const data=Object.fromEntries(fields);
+    data.id=collectionRequestId;
+    data.action='collection';
+    data.together=fields.has('together');
+    data.image=await compressProof(fields.get('image'));
+    await send(data);
+    collectionRequestId=crypto.randomUUID();
+    collectionFields.image.value='';
+    status.textContent='ส่งสลิปแล้ว · รอตรวจสอบ';
+    try{renderGuestCollections(await send({action:'view'}))}
+    catch{status.textContent='ส่งสลิปแล้ว · เปิดหน้าอีกครั้งเพื่อดูยอดล่าสุด'}
+  }catch(error){status.textContent=error.message;button.disabled=false}
+});
 function openExpenseProof(expense, money) {
   const dialog = document.getElementById('expenseProofDialog');
   const image = document.getElementById('proofImage');
@@ -272,10 +365,21 @@ function renderItinerary(itinerary) {
 async function initialize() {
   try {
     if (!token) throw new Error('กรุณาเปิดจากลิงก์ที่ได้รับจากเจ้าของโปรเจกต์');
+    if (new URLSearchParams(location.search).get('proof') === '1') {
+      document.getElementById('title').textContent = 'หลักฐานการชำระเงิน';
+      const proof = await send({ action: 'payment-proof-view' });
+      const amount = new Intl.NumberFormat('th-TH', { style: 'currency', currency: proof.currency }).format(proof.amount);
+      document.getElementById('recipientProofDetails').textContent = [proof.from + ' → ' + proof.to, amount, proof.date].join(' · ');
+      document.getElementById('recipientProofImage').src = proof.image;
+      document.getElementById('recipientProof').hidden = false;
+      status.textContent = '';
+      return;
+    }
     const project = await send({ action: 'view' });
     paymentPairs = project.paymentPairs || [];
     document.getElementById('title').textContent = project.name;
     renderOverview(project);
+    renderGuestCollections(project);
     status.textContent = project.open ? '' : 'ทริปนี้ปิดแล้ว';
     renderItinerary(project.itinerary);
     document.getElementById('currency').textContent = '(' + project.currency + ')';
@@ -321,8 +425,8 @@ form.addEventListener('submit', async event => {
     if (payload.action === 'expense') {
       payload.participantIds = fd.getAll('participantIds');
       if (!payload.participantIds.length) throw new Error('กรุณาเลือกผู้ร่วมหารอย่างน้อยหนึ่งคน');
-      payload.image = await compressProof(fd.get('image'));
     }
+    payload.image = await compressProof(fd.get('image'));
     await send(payload);
     requestId = crypto.randomUUID();
     const member = fields.memberId.value;

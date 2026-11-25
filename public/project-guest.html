@@ -4,20 +4,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title>โปรเจกต์ที่แชร์ | Harmony Haven</title>
-<link rel="stylesheet" href="/assets/project-guest.css?v=2.6.3">
+<link rel="stylesheet" href="/assets/project-guest.css?v=2.7.0">
 <main class="guest-page">
   <div class="guest-brand">Harmony Haven <span>ทริปของเรา</span></div>
-  <header class="hero">
+  <header class="hero" id="tripOverviewTop">
     <h1 id="title">ทริปของเรา</h1>
     <p id="projectMeta"></p>
     <div id="tripMemberCount" class="hero-count" hidden></div>
     <p id="status" role="status">กำลังโหลดข้อมูลทริป…</p>
   </header>
+  <section id="recipientProof" class="guest-card" hidden>
+    <h2>ตรวจสอบสลิปโอนเงิน</h2>
+    <p id="recipientProofDetails"></p>
+    <img id="recipientProofImage" alt="สลิปโอนเงิน" style="display:block;max-width:100%;margin:12px auto">
+    <p>ตรวจสอบยอดเงินเข้าบัญชี แล้วแจ้งคนจัดทริปเพื่อยืนยันรายการ</p>
+  </section>
   <nav id="projectNav" class="guest-nav" aria-label="เมนูทริป" hidden>
     <div class="nav-group">
+    <a href="#tripOverviewTop">ภาพรวม</a>
     <a id="scheduleLink" href="#projectSchedule">กำหนดการ</a>
-    <a href="#tripMembers">เพื่อนร่วมทริป</a>
-    <a href="#tripFinance">ดูค่าใช้จ่าย</a>
+    <a href="#expenses">ค่าใช้จ่าย</a>
+    <a id="collectionNav" href="#guestCollections" hidden>เก็บเงินกองกลาง</a>
+    <a href="#balances">เคลียร์ยอด</a>
+    <a href="#guestTripReport">สรุปทริป</a>
     </div>
     <div class="nav-group nav-actions">
     <a id="submitLink" href="#submitRequest" data-action="expense">ส่งค่าใช้จ่าย</a>
@@ -39,9 +48,25 @@
     </section>
     <section id="projectSchedule" class="guest-card schedule-card"><h2>แผนรายวัน</h2><div id="schedule"></div></section>
     <section id="tripMembers" class="guest-card members-card"><h2>เพื่อนร่วมทริป</h2><div id="members" class="members"></div></section>
+    <section class="guest-card" id="guestCollections" hidden>
+      <h2>รอบเก็บเงินกองกลาง</h2>
+      <div id="guestCollectionList"></div>
+      <form id="guestCollectionForm" hidden>
+        <h3>ส่งสลิปเข้ากองกลาง</h3>
+        <label>รอบเก็บเงิน<select name="collectionId" required></select></label>
+        <label>ชื่อของคุณ<select name="memberId" required></select></label>
+        <label id="guestCollectionPair"><input type="checkbox" name="together"> จ่ายพร้อมคู่ของฉัน</label>
+        <p id="guestCollectionDue"></p>
+        <label>ยอดที่โอน<input type="number" name="amount" min="0.01" step="0.01" required></label>
+        <label>วันที่โอน<input type="date" name="date" required></label>
+        <label>สลิปโอนเงิน<input type="file" name="image" accept="image/*" required></label>
+        <button id="guestCollectionSend" type="submit">ส่งให้คนจัดตรวจสอบ</button>
+        <p id="guestCollectionStatus" role="status"></p>
+      </form>
+    </section>
     <details id="tripFinance" class="guest-card finance-card">
       <summary>ค่าใช้จ่ายและการชำระ</summary>
-      <div id="metrics" class="metrics"></div>
+      <section id="guestTripReport"><h2>สรุปทริป</h2><div id="metrics" class="metrics"></div><div id="guestTransfers"></div></section>
       <section id="fundSection" hidden><h2>เงินกองกลาง</h2><div id="fundMetrics" class="metrics"></div><p id="fundHolder"></p></section>
       <section><h2>ยอดสุทธิและคู่จ่ายร่วม</h2><div id="balances"></div></section>
       <section><h2>ค่าใช้จ่ายของทริป</h2><div id="expenses"></div></section>
@@ -64,6 +89,7 @@
       <legend>การชำระเงิน</legend>
       <label>ผู้รับเงิน<select name="toId" required></select></label>
       <label>ช่องทาง<select name="method"><option value="transfer">โอนเงิน</option><option value="cash">เงินสด</option><option value="wallet">Wallet / QR</option><option value="other">อื่น ๆ</option></select></label>
+      <label>สลิปหรือหลักฐานการชำระเงิน<input name="image" type="file" accept="image/*" required></label>
     </fieldset>
     <label>หมายเหตุ<textarea name="note" maxlength="500"></textarea></label>
     <button type="submit">ส่งให้เจ้าของตรวจสอบ</button>
@@ -80,5 +106,5 @@
     <button id="nextProof" type="button">รูปถัดไป</button>
   </div>
 </dialog>
-<script src="/assets/project-guest.js?v=2.6.3" defer></script>
+<script src="/assets/project-guest.js?v=2.7.0" defer></script>
 </html>

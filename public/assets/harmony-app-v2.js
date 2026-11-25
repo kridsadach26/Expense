@@ -1261,6 +1261,7 @@ function renderProjectDetail(){
   renderProjectSettlementHeadline();
   renderProjectPending();
   if(!$('projectTabReport').classList.contains('hidden'))renderTripReport();
+  if(!$('projectTabCollections').classList.contains('hidden'))renderTripCollections();
 }
 function updateTripInboxLabel(project){
   const count=project.pending?.length||0;
@@ -1281,6 +1282,7 @@ function selectProjectTab(name){
   if(name==='travel')renderTripPlanner();
   if(name==='pending')refreshProjectInbox();
   if(name==='report'){renderTripReport();refreshProjectInbox();}
+  if(name==='collections'){renderTripCollections();refreshProjectInbox();}
 }
 document.querySelectorAll('[data-project-tab]').forEach(button=>button.addEventListener('click',()=>selectProjectTab(button.dataset.projectTab)));
 
@@ -1410,6 +1412,7 @@ function deleteTripProposal(id){const p=projectById();if(!confirm('ลบข้�
 function setTripProposalFilter(filter){tripProposalFilter=filter;renderTripPlanner()}
 function openTripFundContribution(id=''){
   const p=projectById();if(!p)return;const t=ensureTravelPlan(p);const item=t.fundContributions.find(x=>x.id===id);
+  if(item?.collectionRequestId)return openCollectionSlip(p.id,item.collectionRequestId);
   const holder=defaultTripFundHolderId(p,t);
   $('tripFundContributionTitle').textContent=item?'แก้ไขเงินกองกลาง':'รับเงินกองกลาง';$('tripFundContributionId').value=item?.id||'';
   $('tripFundContributor').innerHTML=tripMemberOptions(p,item?.contributorId||p.members?.find(m=>m.active!==false)?.id||'');
@@ -1434,7 +1437,7 @@ function saveTripFundContribution(){
   }catch(err){console.error(err);alert('บันทึกเงินกองกลางไม่สำเร็จ กรุณาลองใหม่')}
   finally{if(saveBtn){saveBtn.disabled=false;saveBtn.textContent='บันทึกรับเงิน'}}
 }
-function deleteTripFundContribution(id){const p=projectById();if(!p||!confirm('ลบรายการรับเงินกองกลางนี้หรือไม่?'))return;const t=ensureTravelPlan(p);t.fundContributions=t.fundContributions.filter(x=>x.id!==id);saveProjects();renderTripPlanner()}
+function deleteTripFundContribution(id){const p=projectById();if(!p)return;if(p.travelPlan?.fundContributions?.find(item=>item.id===id)?.collectionRequestId)return alert('รายการจากรอบเก็บเงินเปิดดูได้จากปุ่มดูสลิป');if(!confirm('ลบรายการรับเงินกองกลางนี้หรือไม่?'))return;const t=ensureTravelPlan(p);t.fundContributions=t.fundContributions.filter(x=>x.id!==id);saveProjects();renderTripPlanner()}
 function tripFundSummary(p,t){
   const contributions=t.fundContributions||[],centralExpenses=tripCentralExpenses(p),total=contributions.reduce((sum,item)=>sum+tripContributionBaseAmount(item),0),spent=centralExpenses.reduce((sum,item)=>sum+expenseBaseAmount(item),0);
   const members=(p.members||[]).map(member=>{
@@ -1449,7 +1452,7 @@ function renderTripFund(p,t){
   $('tripFundTotal').textContent=projectCurrency(p,summary.total);$('tripFundSpent').textContent=projectCurrency(p,summary.spent);$('tripFundBalance').textContent=projectCurrency(p,summary.balance);
   $('tripFundBalance').className=summary.balance>=0?'income':'expense';$('tripFundHolderText').textContent=holderId?`เงินอยู่กับ ${holderName}`:'ยังไม่ได้เลือกผู้ถือเงินกองกลาง';
   $('tripFundMetrics').innerHTML=`<div class="trip-fund-stat"><div><span>รับเข้ากองกลาง</span><strong>${projectCurrency(p,summary.total)}</strong></div><div><span>ใช้จากกองกลาง</span><strong>${projectCurrency(p,summary.spent)}</strong></div><div><span>${summary.balance>=0?'คงเหลือ':'สำรองจ่ายเกินกองกลาง'}</span><strong class="${summary.balance>=0?'income':'expense'}">${projectCurrency(p,Math.abs(summary.balance))}</strong></div></div>`;
-  $('tripFundContributionList').innerHTML=summary.contributions.length?summary.contributions.map(item=>`<div class="trip-fund-row"><div><strong>${escapeHtml(tripMemberName(p,item.contributorId))}</strong> ส่งให้ ${escapeHtml(tripMemberName(p,item.receivedById))}<div class="muted">${item.date||'-'} · ${item.method==='cash'?'เงินสด':item.method==='other'?'อื่น ๆ':'โอนเงิน'}${item.note?` · ${escapeHtml(item.note)}`:''}</div></div><div style="text-align:right"><strong>${projectCurrency({currency:item.currency||p.currency},item.amount)}</strong>${item.currency!==p.currency?`<div class="muted">≈ ${projectCurrency(p,tripContributionBaseAmount(item))}</div>`:''}<div><button class="btn btn-light" type="button" onclick="openTripFundContribution('${item.id}')">แก้ไข</button> <button class="btn btn-danger" type="button" onclick="deleteTripFundContribution('${item.id}')">ลบ</button></div></div></div>`).join(''):'<div class="travel-empty">ยังไม่มีสมาชิกส่งเงินเข้ากองกลาง</div>';
+  $('tripFundContributionList').innerHTML=summary.contributions.length?summary.contributions.map(item=>`<div class="trip-fund-row"><div><strong>${escapeHtml(tripMemberName(p,item.contributorId))}</strong> ส่งให้ ${escapeHtml(tripMemberName(p,item.receivedById))}<div class="muted">${item.date||'-'} · ${item.method==='cash'?'เงินสด':item.method==='other'?'อื่น ๆ':'โอนเงิน'}${item.note?` · ${escapeHtml(item.note)}`:''}</div></div><div style="text-align:right"><strong>${projectCurrency({currency:item.currency||p.currency},item.amount)}</strong>${item.currency!==p.currency?`<div class="muted">≈ ${projectCurrency(p,tripContributionBaseAmount(item))}</div>`:''}<div><button class="btn btn-light" type="button" onclick="openTripFundContribution('${item.id}')">${item.collectionRequestId?'ดูสลิป':'แก้ไข'}</button> ${item.collectionRequestId?'':`<button class="btn btn-danger" type="button" onclick="deleteTripFundContribution('${item.id}')">ลบ</button>`}</div></div></div>`).join(''):'<div class="travel-empty">ยังไม่มีสมาชิกส่งเงินเข้ากองกลาง</div>';
   const rows=summary.members.filter(row=>row.contributed||row.responsible),unified=calculateProjectBalances(p);
   $('tripFundReconciliation').innerHTML=rows.length?`<h4 style="margin:14px 0 8px">สรุปกองกลางรายคน</h4><div class="trip-fund-reconcile">${rows.map(row=>{const finalNet=unified[row.member.id]?.net||0;return `<div class="trip-fund-reconcile-row"><div><strong>${escapeHtml(row.member.name)}</strong><div class="muted">ส่ง ${projectCurrency(p,row.contributed)} · รับผิดชอบจากกองกลาง ${projectCurrency(p,row.responsible)}</div></div><strong class="${finalNet>=0?'income':'expense'}">${finalNet>=0?'สุทธิทั้งโปรเจกต์ควรได้ ':'สุทธิทั้งโปรเจกต์ต้องจ่าย '}${projectCurrency(p,Math.abs(finalNet))}</strong></div>`}).join('')}</div><div class="muted" style="margin-top:8px">สถานะสุทธิด้านขวารวมเงินส่วนตัว เงินกองกลาง และเงินคงเหลือที่ผู้ถือเงินกำลังถืออยู่แล้ว โดยใช้สูตรเดียวกับหัวสรุปและแท็บ “สรุปการโอน”</div>`:'<div class="muted" style="margin-top:10px">เมื่อมีเงินเข้าและค่าใช้จ่ายจากกองกลาง ระบบจะแสดงยอดรายคนและเชื่อมเข้ากับสรุปการโอนของโปรเจกต์อัตโนมัติ</div>';
 }
@@ -1512,6 +1515,84 @@ function renderTripPlanner(){
   const categoryTotals=TRIP_CATEGORIES.map(([key,label])=>({key,label,total:relevant.filter(x=>x.category===key).reduce((s,x)=>s+tripProposalBaseAmount(p,x),0)})).filter(x=>x.total>0);const max=Math.max(1,...categoryTotals.map(x=>x.total));
   $('tripBudgetByCategory').innerHTML=categoryTotals.length?categoryTotals.map(x=>`<div class="travel-budget-row"><div class="travel-budget-head"><span>${x.label}</span><strong>${projectCurrency(p,x.total)}</strong></div><div class="travel-budget-bar"><div style="width:${Math.min(100,x.total/max*100)}%"></div></div></div>`).join(''):'<div class="travel-empty">ยังไม่มีประมาณการ</div>';
   const budget=t.targetBudget||0;const remaining=budget-(estimated+emergency);$('tripImportantInfo').innerHTML=`<div class="travel-overview">${t.transportRef?`<span>✈️ ${escapeHtml(t.transportRef)}</span>`:''}${t.accommodation?`<span>🏨 ${escapeHtml(t.accommodation)}</span>`:''}${budget?`<span>🎯 งบ ${projectCurrency(p,budget)}</span><span class="${remaining>=0?'income':'expense'}">${remaining>=0?'เหลือ':'เกิน'} ${projectCurrency(p,Math.abs(remaining))}</span>`:''}<span>🧰 สำรอง ${Number(t.emergencyPercent||0)}%</span></div>${t.importantNote?`<div class="muted" style="white-space:pre-wrap">${escapeHtml(t.importantNote)}</div>`:'<div class="muted">ยังไม่มีข้อมูลสำคัญ</div>'}`;
+}
+const tripCollectionsModule=()=>import('/assets/trip-collections.mjs?v=2.7.0');
+function previewSharedTrip(){
+  const link=$('projectShareLink').value;
+  if(!link)return alert('กดสร้างลิงก์ก่อนเปิดหน้าแบบเพื่อน');
+  window.open(link,'_blank','noopener,noreferrer');
+}
+function openTripCollection(){
+  const p=projectById();
+  if(!p||p.owner!==activeUser||p.status!=='active')return;
+  const form=$('tripCollectionForm');
+  form.reset();
+  form.elements.holder.innerHTML=p.members.filter(m=>m.active!==false).map(m=>`<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)}</option>`).join('');
+  form.elements.holder.value=defaultTripFundHolderId(p,p.travelPlan||{})||'';
+  $('collectionCurrency').textContent=p.currency||'THB';
+  $('collectionSaveStatus').textContent='';
+  openDialogById('tripCollectionDialog');
+}
+$('tripCollectionForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const p=projectById(), form=event.currentTarget, status=$('collectionSaveStatus'),button=form.querySelector('[type="submit"]');
+  if(!p||p.owner!==activeUser||p.status!=='active'||button.disabled)return;
+  const fields=new FormData(form), cents=Math.round(Number(fields.get('amount'))*100);
+  const name=String(fields.get('name')).trim(), holderId=fields.get('holder');
+  const account={name:String(fields.get('accountName')).trim(),number:String(fields.get('accountNumber')).trim()};
+  const file=fields.get('qr');
+  if(!name||!Number.isSafeInteger(cents)||cents<1||cents>1000000000||!p.members.some(m=>m.id===holderId&&m.active!==false)){
+    status.textContent='กรอกชื่อรอบ ยอดต่อคน และผู้ถือเงินให้ครบ';return;
+  }
+  if(!account.number&&!file?.size){status.textContent='กรอกเลขบัญชีหรือแนบรูป QR อย่างน้อยหนึ่งอย่าง';return;}
+  button.disabled=true;
+  try{
+    const qr=file?.size?await compressImage(file,1200,.9,320000):null;
+    if(projectById()!==p)return;
+    const round={id:newId(),name,holderId,account,dueDate:fields.get('dueDate'),qr,closed:false,
+      targets:p.members.filter(m=>m.active!==false).map(m=>({id:m.id,name:m.name,cents}))};
+    if(cloudSaving||cloudDirty||cloudVersion===null)throw new Error('รอให้ Cloud บันทึกข้อมูลก่อน แล้วลองอีกครั้ง');
+    const previous=p.fundCollections;
+    p.fundCollections=[...(previous||[]),round];
+    if(!await saveCloudState()){
+      p.fundCollections=previous;throw new Error('บันทึกไม่สำเร็จ กรุณาโหลดข้อมูลล่าสุดแล้วลองอีกครั้ง');
+    }
+    closeDialogById('tripCollectionDialog');
+    renderTripCollections();
+    showToast('เปิดรอบเก็บเงินแล้ว');
+  }catch(error){status.textContent=error.message}
+  finally{button.disabled=false}
+});
+async function renderTripCollections(){
+  const p=projectById();if(!p)return;
+  const {collectionStatus}=await tripCollectionsModule();
+  if(projectById()!==p)return;
+  $('openCollectionForm').hidden=p.owner!==activeUser||p.status!=='active';
+  const list=$('tripCollectionList');
+  list.innerHTML=(p.fundCollections||[]).map(round=>{
+    const status=collectionStatus(p,round);
+    return `<section class="card trip-fold"><div class="section-title"><div><h3>${escapeHtml(round.name)}</h3><p class="muted">${round.closed?'ปิดรับแล้ว':'เปิดรับ'}${round.dueDate?' · ครบกำหนด '+escapeHtml(round.dueDate):''}</p></div>
+      ${p.owner===activeUser&&!round.closed?`<button type="button" class="btn btn-light" data-collection-close="${escapeHtml(round.id)}">ปิดรับ</button>`:''}</div>
+      ${status.map(x=>`<div class="list-row"><strong>${escapeHtml(tripMemberName(p,x.id))}</strong><span>รับแล้ว ${projectCurrency(p,x.paid/100)} / ${projectCurrency(p,x.cents/100)}${x.pending?` · รอตรวจ ${projectCurrency(p,x.pending/100)}`:''}</span></div>`).join('')}</section>`;
+  }).join('')||'<div class="card muted">ยังไม่มีรอบเก็บเงินกองกลาง</div>';
+  list.querySelectorAll('[data-collection-close]').forEach(button=>{button.onclick=async()=>{
+    const round=p.fundCollections.find(item=>item.id===button.dataset.collectionClose);
+    if(!round||cloudDirty||cloudSaving||cloudVersion===null)return alert('รอให้ Cloud พร้อมแล้วลองอีกครั้ง');
+    button.disabled=true;
+    round.closed=true;
+    if(!await saveCloudState()){round.closed=false;alert('ปิดรอบไม่สำเร็จ กรุณาโหลดข้อมูลล่าสุด');}
+    renderTripCollections();
+  }});
+}
+async function openCollectionSlip(projectId,requestId){
+  try{
+    const {res,data}=await fetchJsonWithTimeout('/api/project-share',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'collection-proof',projectId,requestId})
+    });
+    if(!res.ok||!data.url)throw new Error(data.error||'เปิดสลิปไม่สำเร็จ');
+    $('tripImageViewer').src=data.url;openDialogById('tripImageViewerDialog');
+  }catch(error){alert(error.message)}
 }
 async function shareTripPlan(button){
   const project=projectById();
@@ -1624,7 +1705,7 @@ function memberHasFinancialHistory(p,memberId){
     (p.travelPlan.proposals||[]).some(item=>item.proposedBy===memberId)||
     (p.travelPlan.itinerary||[]).some(item=>item.proposedBy===memberId)||p.travelPlan.fundHolderId===memberId
   );
-  return approved||settled||travel;
+  return approved||settled||travel||(p.fundCollections||[]).some(round=>round.holderId===memberId||round.targets.some(target=>target.id===memberId));
 }
 function deleteProjectMember(id){
   const p=projectById();
@@ -2148,8 +2229,12 @@ function renderProjectSettlementHistory(){
   const rows=projectSettlementRecords(p,{includeVoid:true}).slice().sort((a,b)=>String(b.createdAt||b.date||'').localeCompare(String(a.createdAt||a.date||'')));
   el.innerHTML=rows.length?rows.map(item=>{
     const isVoid=item.status==='void',from=projectSettlementGroupName(p,item.fromId,item.fromName),to=projectSettlementGroupName(p,item.toId,item.toName);
-    return `<div class="settlement-history-row ${isVoid?'void':''}"><div class="settlement-history-icon">${isVoid?'↶':'✓'}</div><div><strong>${escapeHtml(from)} → ${escapeHtml(to)}</strong><div class="muted">${escapeHtml(item.date||'-')} · ${escapeHtml(projectSettlementMethodLabel(item.method))}${item.note?` · ${escapeHtml(item.note)}`:''}${isVoid?' · ยกเลิกแล้ว':''}</div></div><div class="settlement-history-amount"><strong>${projectCurrency(p,item.amount)}</strong><span class="muted">${isVoid?'ไม่นับในยอด':'ชำระแล้ว'}</span></div><div class="settlement-history-actions">${isVoid?'':`<button class="btn btn-danger" type="button" onclick="voidProjectSettlement('${item.id}')">ยกเลิก</button>`}</div></div>`;
+    return `<div class="settlement-history-row ${isVoid?'void':''}"><div class="settlement-history-icon">${isVoid?'↶':'✓'}</div><div><strong>${escapeHtml(from)} → ${escapeHtml(to)}</strong><div class="muted">${escapeHtml(item.date||'-')} · ${escapeHtml(projectSettlementMethodLabel(item.method))}${item.note?` · ${escapeHtml(item.note)}`:''}${isVoid?' · ยกเลิกแล้ว':''}</div></div><div class="settlement-history-amount"><strong>${projectCurrency(p,item.amount)}</strong><span class="muted">${isVoid?'ไม่นับในยอด':'ชำระแล้ว'}</span></div><div class="settlement-history-actions">${item.images?.some(isSafeTripImage)?`<button class="btn btn-light" type="button" data-settlement-proof="${escapeHtml(item.id)}">ดูสลิป</button>`:''}${isVoid?'':`<button class="btn btn-danger" type="button" onclick="voidProjectSettlement('${item.id}')">ยกเลิก</button>`}</div></div>`;
   }).join(''):'<div class="empty">ยังไม่มีประวัติการชำระระหว่างสมาชิก</div>';
+  el.querySelectorAll('[data-settlement-proof]').forEach(button=>{
+    const item=rows.find(entry=>entry.id===button.dataset.settlementProof);
+    button.onclick=()=>openTripImage(item.images.find(isSafeTripImage));
+  });
 }
 $('projectSettlementFrom')?.addEventListener('change',()=>updateProjectSettlementDialog({resetAmount:true}));
 $('projectSettlementTo')?.addEventListener('change',()=>updateProjectSettlementDialog({resetAmount:true}));
@@ -2330,14 +2415,32 @@ function renderProjectPending(){
   const owner=project.owner===activeUser;
   $('projectPending').innerHTML=(project.pending||[]).map(item=>{
     const member=id=>escapeHtml(project.members.find(m=>m.id===id)?.name||'-');
-    const title=item.kind==='payment'?'แจ้งโอนเงินให้ '+member(item.toId):escapeHtml(item.name);
+    const title=item.kind==='collection'?'เงินกองกลาง · '+escapeHtml((project.fundCollections||[]).find(round=>round.id===item.collectionId)?.name||''):item.kind==='payment'?'แจ้งโอนเงินให้ '+member(item.toId):escapeHtml(item.name);
     const buttons=owner?`<div class="actions"><button class="btn btn-primary" data-approve>อนุมัติ</button><button class="btn btn-danger" data-reject>ปฏิเสธ</button></div>`:'';
-    return `<div class="list-row" data-request-id="${escapeHtml(item.id)}"><div><strong>${title}</strong><div>${escapeHtml(item.date)} · ผู้ส่ง ${member(item.submitterId)} · ${escapeHtml(projectCurrency(project,item.amount))}</div><div>${escapeHtml(item.note||'')}</div>${(item.images||[]).filter(isSafeTripImage).map(src=>`<img src="${escapeHtml(src)}" alt="หลักฐาน" style="max-width:180px">`).join('')}</div>${buttons}</div>`;
+    return `<div class="list-row" data-request-id="${escapeHtml(item.id)}"><div><strong>${title}</strong><div>${escapeHtml(item.date)} · ผู้ส่ง ${member(item.submitterId)} · ${escapeHtml(projectCurrency(project,item.amount))}</div><div>${escapeHtml(item.note||'')}</div>${item.kind==='collection'?`<div class="muted">ลงยอดให้ ${item.allocations.map(entry=>member(entry.id)+' '+escapeHtml(projectCurrency(project,entry.cents/100))).join(' · ')}</div>`:''}${(item.images||[]).filter(isSafeTripImage).map(src=>`<button type="button" class="btn btn-light" data-review-image><img src="${escapeHtml(src)}" alt="เปิดดูหลักฐาน" style="max-width:160px"></button>`).join('')}${owner&&item.kind==='payment'&&item.images?.some(isSafeTripImage)?'<button type="button" class="btn btn-light" data-copy-payment-proof>ส่งลิงก์สลิปให้ผู้รับ</button>':''}</div>${item.kind==='collection'&&owner?'<button type="button" class="btn btn-light" data-collection-slip>ดูสลิปกองกลาง</button>':''}${buttons}</div>`;
   }).join('')||'<div class="empty">ไม่มีรายการรอตรวจสอบ</div>';
   $('projectPending').querySelectorAll('[data-request-id]').forEach(row=>{
+    row.querySelectorAll('[data-review-image]').forEach(button=>{
+      button.onclick=()=>openTripImage(button.querySelector('img').src);
+    });
+    row.querySelector('[data-copy-payment-proof]')?.addEventListener('click',()=>copyPendingPaymentProof(project.id,row.dataset.requestId));
+    row.querySelector('[data-collection-slip]')?.addEventListener('click',()=>openCollectionSlip(project.id,row.dataset.requestId));
     row.querySelector('[data-approve]')?.addEventListener('click',()=>reviewProjectRequest(row.dataset.requestId,true));
     row.querySelector('[data-reject]')?.addEventListener('click',()=>reviewProjectRequest(row.dataset.requestId,false));
   });
+}
+async function copyPendingPaymentProof(projectId,requestId){
+  try{
+    const {res,data}=await fetchJsonWithTimeout('/api/project-share',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'payment-proof-link',projectId,requestId})
+    });
+    if(!res.ok||!data.token)throw new Error(data.error||'สร้างลิงก์สลิปไม่สำเร็จ');
+    const url=new URL('/t?proof=1','https://expense-six-tau.vercel.app');
+    url.hash=data.token;
+    try{await navigator.clipboard.writeText(url.href);showToast('คัดลอกลิงก์สลิปแล้ว ส่งให้ผู้รับโอนโดยตรง')}
+    catch{window.prompt('คัดลอกลิงก์สลิปสำหรับผู้รับโอน',url.href)}
+  }catch(error){alert(error.message)}
 }
 async function reviewProjectRequest(id,approve){
   const p=projectById(),item=p?.pending?.find(x=>x.id===id);
@@ -2345,9 +2448,20 @@ async function reviewProjectRequest(id,approve){
   if(cloudDirty)return alert('กรุณารอให้ Cloud บันทึกรายการก่อนหน้าเสร็จ');
   if(!approve&&!confirm('ปฏิเสธรายการนี้หรือไม่?'))return;
   const before=structuredClone(p);
-  if(approve&&item.kind==='payment'){
+  if(approve&&item.kind==='collection'){
+    const round=(p.fundCollections||[]).find(entry=>entry.id===item.collectionId);
+    if(!round||!p.members.some(member=>member.id===round.holderId)||!item.allocations?.length)return alert('ไม่พบรอบเก็บเงินหรือผู้ถือเงิน');
+    const plan=ensureTravelPlan(p);
+    if(!item.allocations.every(entry=>p.members.some(member=>member.id===entry.id)))return alert('ไม่พบสมาชิกในรายการนี้');
+    for(const allocation of item.allocations){
+      plan.fundContributions.unshift({id:newId(),collectionRequestId:id,collectionId:round.id,proofPath:item.proofPath,
+        contributorId:allocation.id,receivedById:round.holderId,date:item.date,method:'transfer',amount:allocation.cents/100,
+        currency:p.currency||'THB',exchangeRate:1,note:round.name,createdAt:item.createdAt});
+    }
+  }else if(approve&&item.kind==='payment'){
     if(!recordProjectSettlementPayment({fromId:item.submitterId,toId:item.toId,amount:item.amount,date:item.date,method:item.method,note:item.note}))return;
     p.settlements.at(-1).guestRequestId=id;
+    if(item.images?.length)p.settlements.at(-1).images=item.images;
   }else if(approve){
     if(p.status!=='active')return alert('กรุณาเปิดโปรเจกต์ก่อนอนุมัติค่าใช้จ่าย');
     const ids=item.participantIds;

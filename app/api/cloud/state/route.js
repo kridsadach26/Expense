@@ -71,6 +71,8 @@ export async function PUT(request) {
         const next = incoming.get(project.id);
         const protectedFields = item => ({
           pending: item?.pending || [],
+          collections: item?.fundCollections || [],
+          confirmedCollections: (item?.travelPlan?.fundContributions || []).filter(row => row.collectionRequestId),
           itinerary: item?.sharedItinerary || null,
           shareVersion: item?.shareVersion || '',
           guestExpenses: (item?.expenses || []).filter(row => row.guestRequestId),

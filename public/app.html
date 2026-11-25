@@ -730,6 +730,7 @@
         <button class="active" data-project-tab="overview">ภาพรวม</button>
         <button id="projectTravelTabBtn" class="hidden" data-project-tab="travel">กำหนดการ</button>
         <button data-project-tab="expenses">ค่าใช้จ่าย</button>
+        <button data-project-tab="collections">เก็บเงินกองกลาง</button>
         <button data-project-tab="settlements">เคลียร์ยอด</button>
         <button data-project-tab="report">สรุปทริป</button>
         <button id="tripInboxTab" data-project-tab="pending">รอตรวจสอบ</button>
@@ -768,6 +769,10 @@
         <div class="card"><div id="projectSettlementHistory" class="settlement-history"></div></div>
       </div>
 
+      <div id="projectTabCollections" class="project-tab-panel hidden">
+        <div class="section-title"><h2>รอบเก็บเงินกองกลาง</h2><button id="openCollectionForm" type="button" class="btn btn-primary" onclick="openTripCollection()">+ สร้างรอบ</button></div>
+        <div id="tripCollectionList"></div>
+      </div>
       <div id="projectTabReport" class="project-tab-panel hidden">
         <div class="section-title trip-report-toolbar">
           <h2>รายงานสรุปทริป</h2>
@@ -1107,6 +1112,20 @@
   </div>
 </dialog>
 
+<dialog id="tripCollectionDialog">
+  <div class="dialog-head"><strong>สร้างรอบเก็บเงินกองกลาง</strong><button class="btn btn-light" type="button" onclick="closeDialogById('tripCollectionDialog')">ปิด</button></div>
+  <form id="tripCollectionForm" class="dialog-body">
+    <label>ชื่อรอบ<input name="name" required maxlength="80" placeholder="กองกลางรอบแรก"></label>
+    <label>ครบกำหนด<input name="dueDate" type="date"></label>
+    <label>ยอดต่อคน (<span id="collectionCurrency"></span>)<input name="amount" type="number" required min="0.01" max="1000000" step="0.01"></label>
+    <label>ผู้ถือเงิน<select name="holder" required></select></label>
+    <label>ชื่อบัญชี / ธนาคาร<input name="accountName" maxlength="120"></label>
+    <label>เลขบัญชีหรือพร้อมเพย์<input name="accountNumber" maxlength="40"></label>
+    <label>รูป QR จากธนาคาร<input name="qr" type="file" accept="image/*"></label>
+    <button class="btn btn-primary" type="submit">เปิดรอบและแสดงในลิงก์ทริป</button>
+    <p id="collectionSaveStatus" class="full muted" role="status"></p>
+  </form>
+</dialog>
 <dialog id="memberDialog">
   <div class="dialog-head"><strong>สมาชิกทริป</strong><button class="btn btn-light" onclick="memberDialog.close()">ปิด</button></div>
   <div class="dialog-body">
@@ -1239,6 +1258,7 @@
     <div class="actions">
       <button class="btn btn-primary" onclick="createProjectShareLink()">สร้างลิงก์</button>
       <button class="btn btn-light" onclick="copyProjectLink()">คัดลอกลิงก์</button>
+      <button class="btn btn-light" type="button" onclick="previewSharedTrip()">ดูหน้าแบบเพื่อน</button>
       <button class="btn btn-light" onclick="revokeProjectShare()">ปิดลิงก์เดิมทั้งหมด</button>
       <button class="btn btn-light" type="button" onclick="openProjectItineraryAttachment()">จัดการไฟล์กำหนดการ</button>
     </div>
@@ -1359,6 +1379,6 @@
 <dialog id="notificationCenterDialog"><div class="dialog-head"><strong>การแจ้งเตือน</strong><button class="btn btn-light" onclick="closeDialogById('notificationCenterDialog')">ปิด</button></div><div class="dialog-body"><div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-light" onclick="markAllNotificationsRead()">อ่านทั้งหมดแล้ว</button></div><div id="notificationCenterList"></div></div></dialog>
 <div id="toastStack" class="toast-stack"></div>
 
-<script src="/assets/harmony-app-v2.js?v=2.6.2" defer></script>
+<script src="/assets/harmony-app-v2.js?v=2.7.0" defer></script>
 </body>
 </html>
