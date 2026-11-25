@@ -1,0 +1,120 @@
+:root {
+  color-scheme: light;
+  --ink: #152f2b;
+  --muted: #526761;
+  --accent: #216153;
+  --line: #dce6e0;
+  --surface: #fff;
+  --canvas: #f3f6f3;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font: 16px/1.6 "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif;
+}
+.guest-page { max-width: 1040px; margin: auto; padding: 18px 20px 72px; }
+.guest-brand {
+  display: flex; align-items: center; gap: 12px; padding: 0 2px 14px;
+  font-size: .93rem; font-weight: 750;
+}
+.guest-brand span { border-left: 1px solid #a3b7ae; padding-left: 12px; color: var(--muted); font-weight: 500; }
+.hero {
+  position: relative; overflow: hidden; isolation: isolate;
+  padding: clamp(24px, 6vw, 58px); border-radius: 24px; color: #fff;
+  background: linear-gradient(125deg, #103a34 5%, #28685b 100%);
+  box-shadow: 0 15px 32px #173d3014;
+}
+.hero::after {
+  content: ""; position: absolute; z-index: -1; inset: 0;
+  background: radial-gradient(ellipse at 100% 0%, #c9e9c52a, transparent 52%);
+}
+.hero h1 { margin: 0; max-width: 750px; line-height: 1.17; font-size: clamp(2rem, 6vw, 3.8rem); overflow-wrap: anywhere; }
+.hero p { color: #e4f2ed; margin: 10px 0 0; }
+.hero p:empty { display: none; }
+.hero-count {
+  display: inline-block; margin-top: 20px; padding: 5px 12px;
+  border: 1px solid #c5e5db70; border-radius: 20px; background: #ffffff14;
+}
+.guest-nav {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px;
+  padding: 12px; margin: 16px 0; border: 1px solid var(--line);
+  border-radius: 16px; background: var(--surface);
+}
+.nav-group, .members, .fileActions { display: flex; flex-wrap: wrap; gap: 8px; }
+button, input, select, textarea { font: inherit; }
+button, .guest-nav a, .fileLink {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 42px;
+  padding: 7px 13px; border: 1px solid transparent; border-radius: 10px; cursor: pointer;
+  background: var(--accent); color: white; text-decoration: none; font-weight: 650;
+}
+button:hover, .fileLink:hover { background: #194e42; }
+.guest-nav a { color: #20584a; background: #edf5f0; }
+.guest-nav a:hover { background: #deede5; }
+.nav-actions #submitLink { background: var(--accent); color: white; }
+.nav-actions #submitLink:hover { background: #194e42; }
+.nav-actions #reportPaymentLink, #downloadItinerary { background: white; color: #20584a; border-color: #b9cfc5; }
+button:disabled { opacity: .55; cursor: default; }
+:focus-visible { outline: 3px solid #9b661f; outline-offset: 3px; }
+.guest-card {
+  margin: 16px 0; padding: clamp(16px, 3vw, 26px); border: 1px solid var(--line);
+  border-radius: 18px; background: var(--surface); box-shadow: 0 5px 14px #173d3008;
+}
+.guest-card, .guest-form { scroll-margin-top: 14px; }
+h2 { margin: 0 0 10px; font-size: 1.25rem; }
+p { margin: .5em 0; }
+.attachment-card { border-left: 4px solid #4c8875; }
+#filename, .summaryRow { overflow-wrap: anywhere; }
+#filename, #fileStatus, #fundHolder { color: var(--muted); }
+.fileActions { margin-top: 12px; }
+.guest-schedule-day { border-left: 2px solid #b5d4c4; padding-left: 14px; margin-top: 18px; }
+.guest-day { margin: 0 0 4px; color: var(--accent); font-size: 1rem; }
+.summaryRow {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start;
+  gap: 8px 14px; padding: 11px 0; border-bottom: 1px solid var(--line);
+}
+.summaryRow:last-child { border-bottom: 0; }
+.summaryRow small { display: block; color: var(--muted); }
+.summaryRow strong { text-align: right; white-space: nowrap; }
+.guest-schedule-day .summaryRow strong {
+  padding: 1px 9px; color: #24594d; background: #eaf3ee; border-radius: 8px; font-size: .9rem;
+}
+.guest-schedule-day .summaryRow strong:empty { display: none; }
+.members span { background: #eaf3ee; border-radius: 20px; padding: 5px 12px; overflow-wrap: anywhere; }
+.finance-card summary { cursor: pointer; font-weight: 750; font-size: 1.15rem; }
+.finance-card section { border-top: 1px solid var(--line); padding-top: 15px; margin-top: 16px; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 9px; margin: 12px 0 0; }
+.metric { background: #eff5f1; border-radius: 12px; padding: 10px 12px; }
+.metric strong { display: block; font-size: 1.15rem; }
+.clickableExpense { cursor: pointer; }
+.clickableExpense:hover { background: #f3f8f5; }
+.expenseProof { grid-column: 1 / -1; justify-self: start; background: #edf5f0; color: #20584a; font-size: .88rem; }
+.expenseProof:hover { background: #deede5; }
+label { display: block; margin: 12px 0; font-weight: 650; }
+label > input:not([type=checkbox]), label > select, label > textarea {
+  display: block; width: 100%; min-height: 44px; margin-top: 4px; padding: 8px 10px;
+  border: 1px solid #b9cdc4; border-radius: 9px; background: white; color: var(--ink);
+}
+fieldset { min-width: 0; border: 1px solid var(--line); border-radius: 10px; }
+#participants { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+#participants label { margin: 4px 0; font-weight: 500; }
+iframe { display: block; width: 100%; height: 70vh; border: 1px solid var(--line); border-radius: 10px; margin-top: 12px; }
+#itineraryImage { display: block; max-width: 100%; margin: 12px auto; }
+dialog {
+  width: min(720px, calc(100% - 24px)); max-height: 90vh; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 18px; padding: 20px;
+}
+dialog::backdrop { background: #102b23bb; }
+.proofHeader { display: flex; gap: 12px; justify-content: space-between; align-items: start; }
+#proofImage { max-width: 100%; max-height: 65vh; object-fit: contain; display: block; margin: 12px auto; }
+[hidden] { display: none !important; }
+@media (max-width: 560px) {
+  .guest-page { padding: 12px 12px 50px; }
+  .hero { border-radius: 18px; }
+  .guest-nav { display: grid; }
+  .nav-group a { flex: 1 1 auto; font-size: .93rem; }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

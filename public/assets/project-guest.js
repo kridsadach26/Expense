@@ -134,7 +134,10 @@ function renderOverview(project) {
     title.textContent = date;
     const list = document.createElement('div');
     list.id = 'guestDay' + (++day);
-    element('schedule').append(title, list);
+    const dayCard = document.createElement('div');
+    dayCard.className = 'guest-schedule-day';
+    dayCard.append(title, list);
+    element('schedule').append(dayCard);
     rows(list.id, items, item => [item.title || 'กำหนดการ', item.place || '', item.time || ''], '');
   }
   for (const member of project.members) {
@@ -143,6 +146,9 @@ function renderOverview(project) {
     element('members').append(label);
   }
   if (project.itinerary && !view.schedule.length) element('scheduleLink').href = '#itinerary';
+  const memberCount = element('tripMemberCount');
+  memberCount.textContent = project.members.length + ' คนร่วมทริป';
+  memberCount.hidden = !project.members.length;
   element('projectNav').hidden = false;
   element('projectNav').addEventListener('click', event => {
     const link = event.target.closest('a');
